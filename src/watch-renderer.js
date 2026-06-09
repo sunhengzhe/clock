@@ -115,7 +115,7 @@ let secondFocusProgress = 0;
 let minuteFocusProgress = 0;
 let lastFrameTs = 0;
 
-const secondFocusScale = 3.47;
+const secondFocusScale = 5.205;
 const minuteFocusScale = 5.64;
 
 const secondFocusGap = 0;

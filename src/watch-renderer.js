@@ -173,20 +173,30 @@ function pixelMetric(value, min = pixelCell) {
   return Math.max(min, Math.ceil(value / pixelCell) * pixelCell);
 }
 
-function drawPixelTick(ctx, x0, y0, x1, y1, width, color) {
-  const dx = x1 - x0;
-  const dy = y1 - y0;
+function snapDevicePixel(value, dpr) {
+  return Math.round(value * dpr) / dpr;
+}
+
+function drawPixelTick(ctx, x0, y0, x1, y1, width, color, dpr) {
+  const originX = snapDevicePixel(x0, dpr);
+  const originY = snapDevicePixel(y0, dpr);
+  const targetX = snapDevicePixel(x1, dpr);
+  const targetY = snapDevicePixel(y1, dpr);
+  const dx = targetX - originX;
+  const dy = targetY - originY;
   const len = Math.hypot(dx, dy);
   if (len <= 0) {
     return;
   }
 
   const thickness = pixelMetric(width);
+  const length = pixelMetric(len);
+  const edgeBleed = 1;
   ctx.fillStyle = color;
   ctx.save();
-  ctx.translate(x0, y0);
+  ctx.translate(originX, originY);
   ctx.rotate(Math.atan2(dy, dx));
-  ctx.fillRect(0, -thickness / 2, pixelMetric(len), thickness);
+  ctx.fillRect(-edgeBleed, -thickness / 2 - edgeBleed, length + edgeBleed * 2, thickness + edgeBleed * 2);
   ctx.restore();
 }
 
@@ -200,7 +210,7 @@ function applyRingAccent(style, ringKey) {
   }
 }
 
-function drawTicks(ctx, cx, cy, radius, style, rotationDeg = 0) {
+function drawTicks(ctx, cx, cy, radius, style, rotationDeg = 0, dpr = 1) {
   const drawRingTicks = (stepDeg, width, length, color) => {
     if (!stepDeg || width <= 0 || length <= 0) {
       return;
@@ -219,7 +229,7 @@ function drawTicks(ctx, cx, cy, radius, style, rotationDeg = 0) {
       const innerY = cy + Math.sin(rad) * (radius - length);
 
       if (pixel) {
-        drawPixelTick(ctx, outerX, outerY, innerX, innerY, width, color);
+        drawPixelTick(ctx, outerX, outerY, innerX, innerY, width, color, dpr);
         continue;
       }
 
@@ -365,11 +375,13 @@ function drawCenterCap(ctx, centerX, centerY, faceSize, alpha) {
 }
 
 function drawRing(ctx, ring, faceSize, params) {
-  const { cx, cy, scale, focusLevel, rotationDeg = 0 } = params;
+  const { cx, cy, scale, focusLevel, rotationDeg = 0, dpr = 1 } = params;
 
-  const radius = faceSize * ring.baseRadiusRatio * scale;
-  const ringCx = cx;
-  const ringCy = cy;
+  const radius = activeTheme.pixel
+    ? snapDevicePixel(faceSize * ring.baseRadiusRatio * scale, dpr)
+    : faceSize * ring.baseRadiusRatio * scale;
+  const ringCx = activeTheme.pixel ? snapDevicePixel(cx, dpr) : cx;
+  const ringCy = activeTheme.pixel ? snapDevicePixel(cy, dpr) : cy;
   const style = {
     ...ring,
     // 放大时只改变圈半径，不改变刻度和文字的视觉尺寸。
@@ -399,7 +411,7 @@ function drawRing(ctx, ring, faceSize, params) {
     style.fineWidth = activeTheme.pixel ? pixelMetric(style.minorWidth * 0.68) : Math.max(0.7, style.minorWidth * 0.46);
   }
 
-  drawTicks(ctx, ringCx, ringCy, radius, style, rotationDeg);
+  drawTicks(ctx, ringCx, ringCy, radius, style, rotationDeg, dpr);
   drawNumbers(ctx, ringCx, ringCy, radius, style, rotationDeg);
   drawDetailNumbers(ctx, ringCx, ringCy, radius, style, focusLevel, rotationDeg);
 }
@@ -494,6 +506,7 @@ function renderFrame(timestamp, options) {
     scale: 1,
     focusLevel: 0,
     rotationDeg: 0,
+    dpr,
   });
 
   drawRing(ctx, rings.minute, faceSize, {
@@ -502,6 +515,7 @@ function renderFrame(timestamp, options) {
     scale: minuteScale,
     focusLevel: minuteEase,
     rotationDeg: 0,
+    dpr,
   });
 
   drawRing(ctx, rings.second, faceSize, {
@@ -510,6 +524,7 @@ function renderFrame(timestamp, options) {
     scale: secondScale,
     focusLevel: secondEase,
     rotationDeg: 0,
+    dpr,
   });
 
   drawHand(ctx, centerX, centerY, faceSize, angles.hourDeg, 0.0125, hourHandTipRatio, "#eef5ff");

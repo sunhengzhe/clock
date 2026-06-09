@@ -37,6 +37,40 @@ export const themes = {
     minuteRgb: "93, 226, 210",
     secondRgb: "142, 184, 255",
   },
+  "simple-system": {
+    systemTheme: true,
+    lightThemeKey: "minimal",
+    darkThemeKey: "simple-black",
+  },
+  "simple-black": {
+    bgTop: "#000000",
+    bgBottom: "#000000",
+    glowBlueRgb: "255, 255, 255",
+    glowGreenRgb: "255, 255, 255",
+    minuteRgb: "255, 255, 255",
+    secondRgb: "255, 255, 255",
+    monochromeStrokeRgb: "0, 0, 0",
+    monochrome: true,
+  },
+  minimal: {
+    bgTop: "#f4f1e8",
+    bgBottom: "#f4f1e8",
+    glowBlueRgb: "244, 241, 232",
+    glowGreenRgb: "244, 241, 232",
+    minuteRgb: "0, 0, 0",
+    secondRgb: "0, 0, 0",
+    monochromeStrokeRgb: "244, 241, 232",
+    monochrome: true,
+  },
+  minecraft: {
+    bgTop: "#263f25",
+    bgBottom: "#11170f",
+    glowBlueRgb: "126, 200, 80",
+    glowGreenRgb: "139, 91, 49",
+    minuteRgb: "106, 170, 78",
+    secondRgb: "139, 91, 49",
+    pixel: true,
+  },
   pixel: {
     bgTop: "#1a1326",
     bgBottom: "#080510",
@@ -55,8 +89,27 @@ export const themeOptions = [
   { key: "sunset", label: "日落" },
   { key: "aurora", label: "极光" },
   { key: "starfield", label: "星空" },
-  { key: "pixel", label: "像素" },
+  { key: "simple-system", label: "跟随系统" },
+  { key: "simple-black", label: "黑" },
+  { key: "minimal", label: "白" },
+  { key: "minecraft", label: "我的世界" },
+  { key: "pixel", label: "霓虹" },
 ];
+
+export const themeGroups = [
+  { key: "spectrum", label: "光谱", themeKeys: ["midnight", "sunset", "aurora", "starfield"] },
+  { key: "minimal", label: "简约", themeKeys: ["simple-system", "simple-black", "minimal"] },
+  { key: "pixel", label: "像素", themeKeys: ["minecraft", "pixel"] },
+];
+
+export function groupThemeOptions(options = themeOptions, groups = themeGroups) {
+  const optionByKey = new Map(options.map((option) => [option.key, option]));
+
+  return groups.map((group) => ({
+    ...group,
+    options: group.themeKeys.map((key) => optionByKey.get(key)).filter(Boolean),
+  }));
+}
 
 let secondFocusProgress = 0;
 let minuteFocusProgress = 0;
@@ -141,13 +194,29 @@ const rings = {
 
 let activeTheme = themes.midnight;
 
-export function resolveTheme(themeKey) {
-  return themes[themeKey] ?? themes.midnight;
+export function getSystemColorScheme() {
+  if (typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)").matches) {
+    return "dark";
+  }
+
+  return "light";
+}
+
+export function resolveThemeKey(themeKey, systemScheme = getSystemColorScheme()) {
+  const theme = themes[themeKey] ?? themes.midnight;
+  if (!theme.systemTheme) {
+    return themes[themeKey] ? themeKey : "midnight";
+  }
+
+  return systemScheme === "dark" ? theme.darkThemeKey : theme.lightThemeKey;
+}
+
+export function resolveTheme(themeKey, systemScheme) {
+  return themes[resolveThemeKey(themeKey, systemScheme)] ?? themes.midnight;
 }
 
 function applyRendererTheme(themeKey) {
-  const theme = themes[themeKey] ?? themes.midnight;
-  activeTheme = theme;
+  activeTheme = resolveTheme(themeKey);
 }
 
 function accent(ringKey, alpha) {
@@ -202,6 +271,15 @@ function drawPixelTick(ctx, x0, y0, x1, y1, width, color, dpr) {
 
 // 把刻度/数字的固定配色换成跟随主题的强调色（分钟、秒针两套）。
 function applyRingAccent(style, ringKey) {
+  if (activeTheme.monochrome) {
+    const inkRgb = ringKey === "hour" ? activeTheme.minuteRgb : ringKey === "minute" ? activeTheme.minuteRgb : activeTheme.secondRgb;
+    style.colorMinor = `rgba(${inkRgb}, 0.34)`;
+    style.colorMajor = `rgba(${inkRgb}, 0.92)`;
+    style.numberColor = `rgba(${inkRgb}, 0.96)`;
+    style.numberStroke = `rgba(${activeTheme.monochromeStrokeRgb}, 0.86)`;
+    return;
+  }
+
   if (ringKey === "minute" || ringKey === "second") {
     const pixel = activeTheme.pixel;
     style.colorMinor = accent(ringKey, pixel ? 0.72 : ringKey === "minute" ? 0.42 : 0.4);
@@ -362,13 +440,13 @@ function drawCenterCap(ctx, centerX, centerY, faceSize, alpha) {
   ctx.globalAlpha = alpha;
 
   const radius = Math.max(6, faceSize * 0.011);
-  ctx.fillStyle = "#f6f9ff";
+  ctx.fillStyle = activeTheme.monochrome ? accent("minute", 1) : "#f6f9ff";
   ctx.beginPath();
   ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.lineWidth = Math.max(2, faceSize * 0.005);
-  ctx.strokeStyle = "rgba(23, 32, 49, 0.95)";
+  ctx.strokeStyle = activeTheme.monochrome ? `rgba(${activeTheme.monochromeStrokeRgb}, 1)` : "rgba(23, 32, 49, 0.95)";
   ctx.stroke();
 
   ctx.restore();
@@ -527,7 +605,7 @@ function renderFrame(timestamp, options) {
     dpr,
   });
 
-  drawHand(ctx, centerX, centerY, faceSize, angles.hourDeg, 0.0125, hourHandTipRatio, "#eef5ff");
+  drawHand(ctx, centerX, centerY, faceSize, angles.hourDeg, 0.0125, hourHandTipRatio, activeTheme.monochrome ? accent("minute", 1) : "#eef5ff");
   drawHand(ctx, centerX, centerY, faceSize, angles.minuteDeg, 0.008, minuteHandTipRatio, accent("minute", 0.95));
   drawHand(ctx, centerX, centerY, faceSize, angles.secondDeg, 0.0038, secondHandTipRatio, accent("second", 0.95));
 

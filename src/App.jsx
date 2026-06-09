@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { readFaceClickedPreference, writeFaceClickedPreference } from "./interaction-preferences.js";
 import { DEFAULT_THEME_KEY, readThemePreference, writeThemePreference } from "./theme-preferences.js";
 import {
   groupThemeOptions,
@@ -10,24 +11,19 @@ import {
   themes,
 } from "./watch-renderer.js";
 
-const FACE_CLICKED_STORAGE_KEY = "watch-face-clicked";
 const MENU_IDLE_HIDE_MS = 2800;
 const watchThemeGroups = groupThemeOptions();
 
 function getStoredFaceClicked() {
-  try {
-    return window.sessionStorage.getItem(FACE_CLICKED_STORAGE_KEY) === "1";
-  } catch {
+  if (typeof window === "undefined") {
     return false;
   }
+
+  return readFaceClickedPreference(window.localStorage);
 }
 
 function storeFaceClicked() {
-  try {
-    window.sessionStorage.setItem(FACE_CLICKED_STORAGE_KEY, "1");
-  } catch {
-    // Session storage is an enhancement; the interaction should still work.
-  }
+  writeFaceClickedPreference(window.localStorage);
 }
 
 function getStoredThemeKey() {

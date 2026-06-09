@@ -17,6 +17,10 @@ function createStorage(initial = {}) {
   };
 }
 
+test("default theme is minimal white", () => {
+  assert.equal(DEFAULT_THEME_KEY, "minimal");
+});
+
 test("readThemePreference restores a valid stored theme", () => {
   const storage = createStorage({ [THEME_STORAGE_KEY]: "simple-system" });
 

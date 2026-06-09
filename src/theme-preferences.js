@@ -1,4 +1,4 @@
-export const DEFAULT_THEME_KEY = "midnight";
+export const DEFAULT_THEME_KEY = "minimal";
 export const THEME_STORAGE_KEY = "watch-face-theme";
 
 export function isThemeKey(themeKey, themesByKey) {

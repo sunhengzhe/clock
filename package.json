@@ -1,0 +1,19 @@
+{
+  "name": "watch-face-project",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 4173",
+    "start": "vite --host 0.0.0.0 --port 4173",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^6.3.5",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

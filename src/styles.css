@@ -10,6 +10,7 @@
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html,
@@ -89,21 +90,29 @@ body.theme-minimal::after {
 .watch-stage {
   position: relative;
   z-index: 1;
+  width: 100vw;
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: 20px;
   cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
 }
 
 .watch-face {
   position: relative;
-  width: min(92vmin, 620px);
+  width: min(92vmin, calc(100vw - 40px), 620px);
   aspect-ratio: 1;
+  display: block;
+  justify-self: center;
+  align-self: center;
   border-radius: 50%;
   background: none;
   box-shadow: none;
   overflow: visible;
+  touch-action: manipulation;
 }
 
 .watch-canvas {
@@ -528,8 +537,12 @@ body.show-tap-hint .tap-hint {
 }
 
 @media (max-width: 720px) {
+  .watch-stage {
+    padding: 14px;
+  }
+
   .watch-face {
-    width: min(96vmin, 500px);
+    width: min(94vmin, calc(100vw - 28px), 500px);
   }
 
   .menu-trigger {

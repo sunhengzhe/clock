@@ -203,8 +203,11 @@ export default function App() {
     markFaceClicked();
   }, [markFaceClicked]);
 
-  const handleStageClick = useCallback(
+  const handleStagePointerUp = useCallback(
     (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
       if (event.target instanceof Element && event.target.closest("#watch-menu")) {
         return;
       }
@@ -249,7 +252,8 @@ export default function App() {
   return (
     <main
       className="watch-stage"
-      onClick={handleStageClick}
+      data-mode={modes[modeIndex]}
+      onPointerUp={handleStagePointerUp}
       onPointerEnter={handleStagePointerEnter}
       onPointerLeave={handleStagePointerLeave}
     >

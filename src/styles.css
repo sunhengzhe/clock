@@ -135,7 +135,7 @@ body.theme-pixel .watch-canvas {
 }
 
 .menu-trigger {
-  display: inline-flex;
+  display: none;
   align-items: center;
   gap: 8px;
   min-height: 38px;
@@ -532,6 +532,10 @@ body.show-tap-hint .tap-hint {
     width: min(96vmin, 500px);
   }
 
+  .menu-trigger {
+    display: inline-flex;
+  }
+
   .watch-menu {
     right: 14px;
     top: max(18px, 3vh);
@@ -540,5 +544,11 @@ body.show-tap-hint .tap-hint {
   .tap-hint {
     bottom: max(18px, 4vh);
     font-size: 12.5px;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .menu-trigger {
+    display: inline-flex;
   }
 }

@@ -11,6 +11,7 @@ import {
 } from "./watch-renderer.js";
 
 const FACE_CLICKED_STORAGE_KEY = "watch-face-clicked";
+const MENU_IDLE_HIDE_MS = 2800;
 const watchThemeGroups = groupThemeOptions();
 
 function getStoredFaceClicked() {
@@ -45,9 +46,18 @@ function getCurrentSystemScheme() {
   return "light";
 }
 
+function getIsTouchMenu() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return window.matchMedia?.("(hover: none), (pointer: coarse), (max-width: 720px)").matches ?? false;
+}
+
 export default function App() {
   const [themeKey, setThemeKey] = useState(getStoredThemeKey);
   const [systemScheme, setSystemScheme] = useState(getCurrentSystemScheme);
+  const [isTouchMenu, setIsTouchMenu] = useState(getIsTouchMenu);
   const [modeIndex, setModeIndex] = useState(0);
   const [menuVisible, setMenuVisible] = useState(false);
   const [hasClickedFace, setHasClickedFace] = useState(getStoredFaceClicked);
@@ -56,6 +66,7 @@ export default function App() {
   const canvasRef = useRef(null);
   const themeKeyRef = useRef(themeKey);
   const modeRef = useRef(modes[modeIndex]);
+  const menuIdleTimerRef = useRef(0);
 
   useEffect(() => {
     themeKeyRef.current = themeKey;
@@ -121,8 +132,63 @@ export default function App() {
   useEffect(() => {
     const body = document.body;
     body.classList.toggle("menu-visible", menuVisible);
+    body.classList.toggle("touch-menu", isTouchMenu);
     body.classList.toggle("show-tap-hint", !hasClickedFace);
-  }, [hasClickedFace, menuVisible]);
+  }, [hasClickedFace, isTouchMenu, menuVisible]);
+
+  useEffect(() => {
+    const media = window.matchMedia?.("(hover: none), (pointer: coarse), (max-width: 720px)");
+    if (!media) {
+      return undefined;
+    }
+
+    const syncTouchMenu = () => {
+      setIsTouchMenu(media.matches);
+      setMenuVisible(false);
+    };
+
+    syncTouchMenu();
+    media.addEventListener("change", syncTouchMenu);
+    return () => media.removeEventListener("change", syncTouchMenu);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      window.clearTimeout(menuIdleTimerRef.current);
+    };
+  }, []);
+
+  const hideMenu = useCallback(() => {
+    window.clearTimeout(menuIdleTimerRef.current);
+    menuIdleTimerRef.current = 0;
+    setMenuVisible(false);
+  }, []);
+
+  const showMenuWithTimeout = useCallback(() => {
+    setMenuVisible(true);
+    window.clearTimeout(menuIdleTimerRef.current);
+    menuIdleTimerRef.current = window.setTimeout(() => {
+      setMenuVisible(false);
+      menuIdleTimerRef.current = 0;
+    }, MENU_IDLE_HIDE_MS);
+  }, []);
+
+  useEffect(() => {
+    if (isTouchMenu) {
+      window.clearTimeout(menuIdleTimerRef.current);
+      menuIdleTimerRef.current = 0;
+      return undefined;
+    }
+
+    const handlePointerMove = (event) => {
+      if (event.pointerType === "mouse") {
+        showMenuWithTimeout();
+      }
+    };
+
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
+    return () => window.removeEventListener("pointermove", handlePointerMove);
+  }, [isTouchMenu, showMenuWithTimeout]);
 
   const markFaceClicked = useCallback(() => {
     if (hasClickedFace) {
@@ -151,18 +217,41 @@ export default function App() {
     setMenuVisible((current) => !current);
   }, []);
 
+  const handleStagePointerEnter = useCallback(
+    (event) => {
+      if (!isTouchMenu && event.pointerType === "mouse") {
+        showMenuWithTimeout();
+      }
+    },
+    [isTouchMenu, showMenuWithTimeout],
+  );
+
+  const handleStagePointerLeave = useCallback(
+    (event) => {
+      if (!isTouchMenu && event.pointerType === "mouse") {
+        hideMenu();
+      }
+    },
+    [hideMenu, isTouchMenu],
+  );
+
   const handleThemeClick = useCallback(
     (nextThemeKey) => {
       setThemeKey(nextThemeKey);
       writeThemePreference(window.localStorage, nextThemeKey, themes);
+      if (!isTouchMenu) {
+        showMenuWithTimeout();
+      }
     },
-    [],
+    [isTouchMenu, showMenuWithTimeout],
   );
 
   return (
     <main
       className="watch-stage"
       onClick={handleStageClick}
+      onPointerEnter={handleStagePointerEnter}
+      onPointerLeave={handleStagePointerLeave}
     >
       <div ref={watchFaceRef} id="watch-face" className="watch-face" aria-hidden="true">
         <canvas ref={canvasRef} id="watch-canvas" className="watch-canvas" aria-hidden="true" />

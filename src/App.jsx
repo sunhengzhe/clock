@@ -11,7 +11,6 @@ import {
 } from "./watch-renderer.js";
 
 const FACE_CLICKED_STORAGE_KEY = "watch-face-clicked";
-const MENU_IDLE_HIDE_MS = 2800;
 const watchThemeGroups = groupThemeOptions();
 
 function getStoredFaceClicked() {
@@ -50,14 +49,13 @@ export default function App() {
   const [themeKey, setThemeKey] = useState(getStoredThemeKey);
   const [systemScheme, setSystemScheme] = useState(getCurrentSystemScheme);
   const [modeIndex, setModeIndex] = useState(0);
-  const [menuVisible, setMenuVisible] = useState(true);
+  const [menuVisible, setMenuVisible] = useState(false);
   const [hasClickedFace, setHasClickedFace] = useState(getStoredFaceClicked);
 
   const watchFaceRef = useRef(null);
   const canvasRef = useRef(null);
   const themeKeyRef = useRef(themeKey);
   const modeRef = useRef(modes[modeIndex]);
-  const menuIdleTimerRef = useRef(0);
 
   useEffect(() => {
     themeKeyRef.current = themeKey;
@@ -126,38 +124,6 @@ export default function App() {
     body.classList.toggle("show-tap-hint", !hasClickedFace);
   }, [hasClickedFace, menuVisible]);
 
-  useEffect(() => {
-    return () => {
-      window.clearTimeout(menuIdleTimerRef.current);
-    };
-  }, []);
-
-  const hideMenu = useCallback(() => {
-    window.clearTimeout(menuIdleTimerRef.current);
-    menuIdleTimerRef.current = 0;
-    setMenuVisible(false);
-  }, []);
-
-  const showMenuWithTimeout = useCallback(() => {
-    setMenuVisible(true);
-    window.clearTimeout(menuIdleTimerRef.current);
-    menuIdleTimerRef.current = window.setTimeout(() => {
-      setMenuVisible(false);
-      menuIdleTimerRef.current = 0;
-    }, MENU_IDLE_HIDE_MS);
-  }, []);
-
-  useEffect(() => {
-    const handlePointerMove = (event) => {
-      if (event.pointerType === "mouse") {
-        showMenuWithTimeout();
-      }
-    };
-
-    window.addEventListener("pointermove", handlePointerMove, { passive: true });
-    return () => window.removeEventListener("pointermove", handlePointerMove);
-  }, [showMenuWithTimeout]);
-
   const markFaceClicked = useCallback(() => {
     if (hasClickedFace) {
       return;
@@ -181,46 +147,41 @@ export default function App() {
     [toggleMode],
   );
 
-  const handleStagePointerEnter = useCallback(
-    (event) => {
-      if (event.pointerType === "mouse") {
-        showMenuWithTimeout();
-      }
-    },
-    [showMenuWithTimeout],
-  );
-
-  const handleStagePointerLeave = useCallback(
-    (event) => {
-      if (event.pointerType === "mouse") {
-        hideMenu();
-      }
-    },
-    [hideMenu],
-  );
+  const toggleMenu = useCallback(() => {
+    setMenuVisible((current) => !current);
+  }, []);
 
   const handleThemeClick = useCallback(
     (nextThemeKey) => {
       setThemeKey(nextThemeKey);
       writeThemePreference(window.localStorage, nextThemeKey, themes);
-      showMenuWithTimeout();
     },
-    [showMenuWithTimeout],
+    [],
   );
 
   return (
     <main
       className="watch-stage"
       onClick={handleStageClick}
-      onPointerEnter={handleStagePointerEnter}
-      onPointerLeave={handleStagePointerLeave}
     >
       <div ref={watchFaceRef} id="watch-face" className="watch-face" aria-hidden="true">
         <canvas ref={canvasRef} id="watch-canvas" className="watch-canvas" aria-hidden="true" />
       </div>
 
       <aside id="watch-menu" className="watch-menu" aria-label="表盘菜单">
-        <div className="menu-item">
+        <button
+          type="button"
+          className="menu-trigger"
+          data-theme={themeKey}
+          aria-controls="theme-options-panel"
+          aria-expanded={menuVisible}
+          onClick={toggleMenu}
+        >
+          <span className="theme-trigger-dot" aria-hidden="true" />
+          <span>主题</span>
+        </button>
+
+        <div id="theme-options-panel" className="menu-item">
           <span className="menu-item-label">主题</span>
           <div id="theme-options" className="theme-options" role="radiogroup" aria-label="选择主题">
             {watchThemeGroups.map((group) => (

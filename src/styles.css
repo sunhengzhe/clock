@@ -100,19 +100,10 @@ body.theme-minimal::after {
   position: relative;
   width: min(92vmin, 620px);
   aspect-ratio: 1;
-  padding: 0;
-  border: none;
   border-radius: 50%;
-  appearance: none;
   background: none;
   box-shadow: none;
-  cursor: pointer;
   overflow: visible;
-}
-
-.watch-face:focus-visible {
-  outline: 2px solid rgba(150, 190, 255, 0.9);
-  outline-offset: 8px;
 }
 
 .watch-canvas {
@@ -330,12 +321,10 @@ body.menu-visible .watch-menu {
   color: rgba(236, 244, 255, 0.95);
 }
 
-body.theme-minimal .watch-face:focus-visible,
 body.theme-minimal .theme-swatch:focus-visible {
   outline-color: rgba(0, 0, 0, 0.82);
 }
 
-body.theme-simple-black .watch-face:focus-visible,
 body.theme-simple-black .theme-swatch:focus-visible {
   outline-color: rgba(255, 255, 255, 0.86);
 }

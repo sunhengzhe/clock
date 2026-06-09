@@ -215,9 +215,9 @@ export default function App() {
       onPointerEnter={handleStagePointerEnter}
       onPointerLeave={handleStagePointerLeave}
     >
-      <button ref={watchFaceRef} id="watch-face" className="watch-face" type="button" aria-label="点击切换表盘圈层模式">
+      <div ref={watchFaceRef} id="watch-face" className="watch-face" aria-hidden="true">
         <canvas ref={canvasRef} id="watch-canvas" className="watch-canvas" aria-hidden="true" />
-      </button>
+      </div>
 
       <aside id="watch-menu" className="watch-menu" aria-label="表盘菜单">
         <div className="menu-item">

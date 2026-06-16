@@ -493,18 +493,29 @@ function createTextOrderSeed() {
   return `blackhole-text-order:${random}`;
 }
 
-export function getBlackHolePointerTarget({ clientX, clientY, height, width }) {
+export function getBlackHolePointerTarget({ clientX, clientY, height, left = 0, top = 0, width }) {
   const safeWidth = Math.max(1, width);
   const safeHeight = Math.max(1, height);
 
   return {
-    x: clamp(clientX / safeWidth, POINTER_TARGET_MARGIN, 1 - POINTER_TARGET_MARGIN),
-    y: clamp(1 - clientY / safeHeight, POINTER_TARGET_MARGIN, 1 - POINTER_TARGET_MARGIN),
+    x: clamp((clientX - left) / safeWidth, POINTER_TARGET_MARGIN, 1 - POINTER_TARGET_MARGIN),
+    y: clamp(1 - (clientY - top) / safeHeight, POINTER_TARGET_MARGIN, 1 - POINTER_TARGET_MARGIN),
   };
 }
 
-function createBlackHolePointerTracker() {
-  if (typeof window === "undefined") {
+export function isBlackHolePointerInsideRect({ clientX, clientY, height, left = 0, top = 0, width }) {
+  const safeWidth = Math.max(1, width);
+  const safeHeight = Math.max(1, height);
+
+  return clientX >= left && clientX <= left + safeWidth && clientY >= top && clientY <= top + safeHeight;
+}
+
+export function isBlackHolePointerTargetIgnored(eventTarget, ignoredSelector = "#watch-menu") {
+  return Boolean(eventTarget?.closest?.(ignoredSelector));
+}
+
+export function createBlackHolePointerTracker(target) {
+  if (typeof window === "undefined" || !target) {
     return {
       cleanup: () => { },
       getTarget: () => null,
@@ -523,25 +534,39 @@ function createBlackHolePointerTracker() {
     if (event.pointerType && event.pointerType !== "mouse") {
       return;
     }
+    if (isBlackHolePointerTargetIgnored(event.target)) {
+      markOutside();
+      return;
+    }
 
-    const width = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
-    const height = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
-    const inside = event.clientX >= 0 && event.clientX <= width && event.clientY >= 0 && event.clientY <= height;
+    const rect = target.getBoundingClientRect();
+    const width = Math.max(1, rect.width);
+    const height = Math.max(1, rect.height);
+    const inside = isBlackHolePointerInsideRect({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      height,
+      left: rect.left,
+      top: rect.top,
+      width,
+    });
     pointer.inside = inside;
 
     if (!inside) {
       return;
     }
 
-    const target = getBlackHolePointerTarget({
+    const pointerTarget = getBlackHolePointerTarget({
       clientX: event.clientX,
       clientY: event.clientY,
       height,
+      left: rect.left,
+      top: rect.top,
       width,
     });
 
-    pointer.x = target.x;
-    pointer.y = target.y;
+    pointer.x = pointerTarget.x;
+    pointer.y = pointerTarget.y;
   };
   const handlePointerOut = (event) => {
     if (!event.relatedTarget) {
@@ -556,16 +581,18 @@ function createBlackHolePointerTracker() {
 
   window.addEventListener("pointermove", handlePointerMove, { passive: true });
   window.addEventListener("pointerout", handlePointerOut, { passive: true });
+  window.addEventListener("pointercancel", markOutside, { passive: true });
   window.addEventListener("blur", markOutside);
-  document.documentElement.addEventListener("mouseleave", markOutside);
+  document.documentElement?.addEventListener("mouseleave", markOutside);
   document.addEventListener("visibilitychange", handleVisibilityChange);
 
   return {
     cleanup: () => {
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerout", handlePointerOut);
+      window.removeEventListener("pointercancel", markOutside);
       window.removeEventListener("blur", markOutside);
-      document.documentElement.removeEventListener("mouseleave", markOutside);
+      document.documentElement?.removeEventListener("mouseleave", markOutside);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     },
     getTarget: () => (pointer.inside ? { x: pointer.x, y: pointer.y } : null),
@@ -1349,7 +1376,7 @@ function startFallbackRenderer({ canvas, getReducedMotion }) {
   let frameId = 0;
   let lastPaint = 0;
   const motionState = createBlackHoleMotionState();
-  const pointerTracker = createBlackHolePointerTracker();
+  const pointerTracker = createBlackHolePointerTracker(canvas);
   const textOrderSeed = createTextOrderSeed();
   const timeDilationState = createBlackHoleTimeDilationState();
 
@@ -1438,7 +1465,7 @@ export function startBlackHoleBackdropRenderer({ canvas, getReducedMotion = () =
     height: 0,
     lastTextureUpdate: 0,
     motionState: createBlackHoleMotionState(),
-    pointerTracker: createBlackHolePointerTracker(),
+    pointerTracker: createBlackHolePointerTracker(canvas),
     program,
     textCanvas,
     textCtx,

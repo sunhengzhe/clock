@@ -16,6 +16,7 @@ test("blackhole theme uses its own fullscreen canvas backdrop", () => {
   assert.match(getCssBlock(".blackhole-backdrop"), /position:\s*fixed/);
   assert.match(getCssBlock(".blackhole-backdrop"), /pointer-events:\s*none/);
   assert.match(getCssBlock("body.theme-blackhole .blackhole-backdrop"), /opacity:\s*1/);
+  assert.match(getCssBlock("body.theme-blackhole .blackhole-backdrop"), /pointer-events:\s*auto/);
 });
 
 test("blackhole theme suppresses generic pseudo background layers", () => {
@@ -25,6 +26,14 @@ test("blackhole theme suppresses generic pseudo background layers", () => {
 test("blackhole theme hides the watch face and tap hint", () => {
   assert.match(styles, /body\.theme-blackhole\s+\.watch-face,\s*body\.theme-blackhole\s+\.tap-hint\s*{[^}]*visibility:\s*hidden/s);
   assert.match(styles, /body\.theme-blackhole\s+\.watch-face,\s*body\.theme-blackhole\s+\.tap-hint\s*{[^}]*pointer-events:\s*none/s);
+});
+
+test("blackhole theme scopes pointer tracking to the backdrop canvas", () => {
+  const stageBlock = getCssBlock("body.theme-blackhole .watch-stage");
+  const backdropBlock = getCssBlock("body.theme-blackhole .blackhole-backdrop");
+
+  assert.match(stageBlock, /pointer-events:\s*none/);
+  assert.match(backdropBlock, /pointer-events:\s*auto/);
 });
 
 test("blackhole theme keeps an unaffected real-time overlay above the canvas", () => {

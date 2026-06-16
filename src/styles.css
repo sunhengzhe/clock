@@ -186,6 +186,7 @@ body.theme-blackhole::after {
 
 body.theme-blackhole .watch-stage {
   cursor: default;
+  pointer-events: none;
 }
 
 body.theme-blackhole .watch-face,
@@ -259,6 +260,7 @@ body.theme-porcelain::after {
 
 body.theme-blackhole .blackhole-backdrop {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .blackhole-real-time {

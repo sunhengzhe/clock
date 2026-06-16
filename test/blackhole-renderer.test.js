@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   BLACK_HOLE_FRAGMENT_SHADER,
+  createBlackHolePointerTracker,
   createBlackHoleMotionState,
   createBlackHoleTimeDilationState,
   createBlackHoleTextRows,
@@ -16,6 +17,8 @@ import {
   getBlackHoleMotion,
   getBlackHoleRenderSize,
   getBlackHoleTextMetrics,
+  isBlackHolePointerInsideRect,
+  isBlackHolePointerTargetIgnored,
   updateBlackHoleMotionState,
   getBlackHoleTextSegmentStyle,
   updateBlackHoleTimeDilationState,
@@ -277,6 +280,96 @@ test("blackhole pointer target converts DOM y to shader UV y", () => {
   assert.equal(bottomTarget.x, 0.25);
   assert.equal(Number(bottomTarget.y.toFixed(2)), 0.1);
   assert.ok(topTarget.y > bottomTarget.y);
+});
+
+test("blackhole pointer target is measured relative to the canvas rect", () => {
+  const target = getBlackHolePointerTarget({
+    clientX: 260,
+    clientY: 140,
+    height: 400,
+    left: 60,
+    top: 40,
+    width: 800,
+  });
+
+  assert.equal(target.x, 0.25);
+  assert.equal(target.y, 0.75);
+});
+
+test("blackhole pointer tracking treats the canvas rect as the active area", () => {
+  assert.equal(isBlackHolePointerInsideRect({
+    clientX: 260,
+    clientY: 140,
+    height: 400,
+    left: 60,
+    top: 40,
+    width: 800,
+  }), true);
+  assert.equal(isBlackHolePointerInsideRect({
+    clientX: 40,
+    clientY: 140,
+    height: 400,
+    left: 60,
+    top: 40,
+    width: 800,
+  }), false);
+});
+
+test("blackhole pointer tracking ignores the theme menu", () => {
+  const menuTarget = {
+    closest: (selector) => (selector === "#watch-menu" ? { id: "watch-menu" } : null),
+  };
+  const canvasTarget = {
+    closest: () => null,
+  };
+
+  assert.equal(isBlackHolePointerTargetIgnored(menuTarget), true);
+  assert.equal(isBlackHolePointerTargetIgnored(canvasTarget), false);
+  assert.equal(isBlackHolePointerTargetIgnored(null), false);
+});
+
+test("blackhole pointer tracker follows window pointer moves over the canvas", () => {
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  const windowTarget = new EventTarget();
+  const documentTarget = new EventTarget();
+  const canvas = {
+    getBoundingClientRect: () => ({
+      height: 400,
+      left: 100,
+      top: 50,
+      width: 800,
+    }),
+  };
+
+  Object.defineProperty(documentTarget, "visibilityState", {
+    configurable: true,
+    value: "visible",
+  });
+  globalThis.window = windowTarget;
+  globalThis.document = documentTarget;
+
+  try {
+    const tracker = createBlackHolePointerTracker(canvas);
+    const event = new Event("pointermove");
+    Object.defineProperties(event, {
+      clientX: { value: 500 },
+      clientY: { value: 250 },
+      pointerType: { value: "mouse" },
+    });
+    windowTarget.dispatchEvent(event);
+
+    assert.deepEqual(tracker.getTarget(), { x: 0.5, y: 0.5 });
+    const outEvent = new Event("pointerout");
+    Object.defineProperty(outEvent, "relatedTarget", { value: null });
+    windowTarget.dispatchEvent(outEvent);
+
+    assert.equal(tracker.getTarget(), null);
+    tracker.cleanup();
+  } finally {
+    globalThis.window = previousWindow;
+    globalThis.document = previousDocument;
+  }
 });
 
 test("blackhole motion eases toward the mouse target when the pointer is inside", () => {

@@ -261,6 +261,42 @@ body.theme-blackhole .blackhole-backdrop {
   opacity: 1;
 }
 
+.blackhole-real-time {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  opacity: 0;
+  pointer-events: none;
+  font-family: "SFMono-Regular", "Menlo", "Consolas", "PingFang SC", monospace;
+  letter-spacing: 0;
+  transition: opacity 220ms ease;
+}
+
+body.theme-blackhole .blackhole-real-time {
+  opacity: 1;
+}
+
+.blackhole-real-time-clock {
+  color: rgba(238, 198, 116, 0.88);
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(238, 198, 116, 0.18);
+}
+
+.blackhole-real-time-note {
+  color: rgba(214, 178, 112, 0.68);
+  font-size: 10.5px;
+  font-weight: 300;
+  line-height: 1;
+  text-shadow: 0 0 10px rgba(214, 178, 112, 0.12);
+}
+
 .watch-face {
   position: relative;
   z-index: 1;

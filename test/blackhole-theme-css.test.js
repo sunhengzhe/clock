@@ -27,6 +27,22 @@ test("blackhole theme hides the watch face and tap hint", () => {
   assert.match(styles, /body\.theme-blackhole\s+\.watch-face,\s*body\.theme-blackhole\s+\.tap-hint\s*{[^}]*pointer-events:\s*none/s);
 });
 
+test("blackhole theme keeps an unaffected real-time overlay above the canvas", () => {
+  const block = getCssBlock(".blackhole-real-time");
+
+  assert.match(block, /position:\s*fixed/);
+  assert.match(block, /right:\s*max\(18px,\s*env\(safe-area-inset-right\)\)/);
+  assert.match(block, /bottom:\s*max\(16px,\s*env\(safe-area-inset-bottom\)\)/);
+  assert.match(block, /z-index:\s*4/);
+  assert.match(block, /flex-direction:\s*column/);
+  assert.match(block, /align-items:\s*flex-end/);
+  assert.match(getCssBlock(".blackhole-real-time-clock"), /color:\s*rgba\(238,\s*198,\s*116,\s*0\.88\)/);
+  assert.match(getCssBlock(".blackhole-real-time-clock"), /font-weight:\s*300/);
+  assert.match(getCssBlock(".blackhole-real-time-note"), /color:\s*rgba\(214,\s*178,\s*112,\s*0\.68\)/);
+  assert.match(getCssBlock(".blackhole-real-time-note"), /font-size:\s*10\.5px/);
+  assert.match(getCssBlock("body.theme-blackhole .blackhole-real-time"), /opacity:\s*1/);
+});
+
 test("blackhole theme has a dedicated menu swatch", () => {
   assert.match(styles, /\.theme-swatch\[data-theme="blackhole"\]\s+\.theme-swatch-dot/);
   assert.match(styles, /\.menu-trigger\[data-theme="blackhole"\]\s+\.theme-trigger-dot/);

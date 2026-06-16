@@ -3,6 +3,9 @@ const MAX_RENDER_HEIGHT = 1000;
 const TEXTURE_UPDATE_MS = 125;
 const MOTION_SEGMENT_MS = 11000;
 const MOTION_CYCLE_MS = 38000;
+const MOUSE_FOLLOW_RATE = 0.72;
+const RANDOM_FOLLOW_RATE = 0.36;
+const POINTER_TARGET_MARGIN = 0.06;
 const MIN_SHADOW_RADIUS = 0.032;
 const MAX_SHADOW_RADIUS = 0.078;
 const MIN_TIME_DILATION_RATE = 0.045;
@@ -267,6 +270,14 @@ const TEXT_ROW_STYLES = {
   whisper: { alpha: 0.28, color: "154, 232, 255", weight: 400 },
   world: { alpha: 0.36, color: "255, 188, 218", weight: 500 },
 };
+const TEXT_SEGMENT_STYLES = {
+  epochMilliseconds: { alpha: 0.34, color: "255, 196, 142" },
+  frenchDate: { alpha: 0.37, color: "188, 210, 255" },
+  germanDate: { alpha: 0.37, color: "255, 172, 158" },
+  julianDay: { alpha: 0.33, color: "188, 238, 176" },
+  precisionClock: { alpha: 0.36, color: "220, 198, 255" },
+  unixSeconds: { alpha: 0.35, color: "142, 224, 255" },
+};
 const BLACK_HOLE_TEXT_PATTERN_SPECS = [
   {
     gapAfter: 0.04,
@@ -314,7 +325,7 @@ const BLACK_HOLE_TEXT_PATTERN_SPECS = [
       { key: "slashClock", tier: "anchor" },
       { key: "germanDate", tier: "world" },
       { key: "frenchDate", tier: "world" },
-      { key: "lunarOffset", tier: "lunar" },
+      { key: "lunarWeekday", tier: "lunar" },
       { key: "epochMilliseconds", tier: "technical" },
       { key: "chineseWeek", tier: "civic" },
     ],
@@ -338,6 +349,13 @@ const CHINESE_LUNAR_FORMATTER = createChineseLunarFormatter();
 
 export function getBlackHoleTextRowStyle(tier) {
   return TEXT_ROW_STYLES[tier] ?? TEXT_ROW_STYLES.civic;
+}
+
+export function getBlackHoleTextSegmentStyle(segment) {
+  return {
+    ...getBlackHoleTextRowStyle(segment.tier),
+    ...(TEXT_SEGMENT_STYLES[segment.key] ?? {}),
+  };
 }
 
 function formatChineseYear(year) {
@@ -473,6 +491,85 @@ function createTextOrderSeed() {
     : `${Date.now()}:${Math.random()}`;
 
   return `blackhole-text-order:${random}`;
+}
+
+export function getBlackHolePointerTarget({ clientX, clientY, height, width }) {
+  const safeWidth = Math.max(1, width);
+  const safeHeight = Math.max(1, height);
+
+  return {
+    x: clamp(clientX / safeWidth, POINTER_TARGET_MARGIN, 1 - POINTER_TARGET_MARGIN),
+    y: clamp(1 - clientY / safeHeight, POINTER_TARGET_MARGIN, 1 - POINTER_TARGET_MARGIN),
+  };
+}
+
+function createBlackHolePointerTracker() {
+  if (typeof window === "undefined") {
+    return {
+      cleanup: () => { },
+      getTarget: () => null,
+    };
+  }
+
+  const pointer = {
+    inside: false,
+    x: 0.5,
+    y: 0.5,
+  };
+  const markOutside = () => {
+    pointer.inside = false;
+  };
+  const handlePointerMove = (event) => {
+    if (event.pointerType && event.pointerType !== "mouse") {
+      return;
+    }
+
+    const width = Math.max(1, window.innerWidth || document.documentElement.clientWidth || 1);
+    const height = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
+    const inside = event.clientX >= 0 && event.clientX <= width && event.clientY >= 0 && event.clientY <= height;
+    pointer.inside = inside;
+
+    if (!inside) {
+      return;
+    }
+
+    const target = getBlackHolePointerTarget({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      height,
+      width,
+    });
+
+    pointer.x = target.x;
+    pointer.y = target.y;
+  };
+  const handlePointerOut = (event) => {
+    if (!event.relatedTarget) {
+      markOutside();
+    }
+  };
+  const handleVisibilityChange = () => {
+    if (document.visibilityState !== "visible") {
+      markOutside();
+    }
+  };
+
+  window.addEventListener("pointermove", handlePointerMove, { passive: true });
+  window.addEventListener("pointerout", handlePointerOut, { passive: true });
+  window.addEventListener("blur", markOutside);
+  document.documentElement.addEventListener("mouseleave", markOutside);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+
+  return {
+    cleanup: () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerout", handlePointerOut);
+      window.removeEventListener("blur", markOutside);
+      document.documentElement.removeEventListener("mouseleave", markOutside);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    },
+    getTarget: () => (pointer.inside ? { x: pointer.x, y: pointer.y } : null),
+  };
 }
 
 function createInlineSegments(segments, columns, offset = 0) {
@@ -630,7 +727,7 @@ function formatBlackHoleTextSegment(key, date) {
     case "dayProgressCn":
       return `今日进度 ${dayProgress}%`;
     case "dayProgressEn":
-      return `${dayProgress}% of today`;
+      return `${dayProgress}% of Today`;
     case "dayQuarter":
       return `DAY ${String(dayOfYear).padStart(3, "0")} Q${quarter}`;
     case "epochMilliseconds":
@@ -649,8 +746,6 @@ function formatBlackHoleTextSegment(key, date) {
       return `JD ${formatJulianDay(date)}`;
     case "lunarDate":
       return lunarDate;
-    case "lunarOffset":
-      return `${lunarDate} ${formatUtcOffset(date)}`;
     case "lunarWeekday":
       return `${lunarDate} ${weekday}`;
     case "precisionClock":
@@ -855,6 +950,43 @@ export function getBlackHoleMotion(timestamp, reducedMotion = false) {
   };
 }
 
+export function createBlackHoleMotionState(timestamp = null) {
+  const initialTimestamp = Number.isFinite(timestamp) ? timestamp : 0;
+
+  return {
+    center: getBlackHoleMotion(initialTimestamp).center,
+    lastTimestamp: timestamp,
+  };
+}
+
+export function updateBlackHoleMotionState(state, { pointerTarget = null, reducedMotion = false, timestamp = 0 }) {
+  if (reducedMotion) {
+    const motion = getBlackHoleMotion(timestamp, true);
+    state.center = motion.center;
+    state.lastTimestamp = timestamp;
+    return motion;
+  }
+
+  const randomMotion = getBlackHoleMotion(timestamp, false);
+  const hasPreviousTimestamp = Number.isFinite(state.lastTimestamp);
+  const previousTimestamp = hasPreviousTimestamp ? state.lastTimestamp : timestamp;
+  const deltaSeconds = hasPreviousTimestamp ? Math.max(0, (timestamp - previousTimestamp) / 1000) : 0;
+  const target = pointerTarget ?? randomMotion.center;
+  const followRate = pointerTarget ? MOUSE_FOLLOW_RATE : RANDOM_FOLLOW_RATE;
+  const follow = 1 - Math.exp(-deltaSeconds * followRate);
+
+  state.center = {
+    x: state.center.x + (target.x - state.center.x) * follow,
+    y: state.center.y + (target.y - state.center.y) * follow,
+  };
+  state.lastTimestamp = timestamp;
+
+  return {
+    ...randomMotion,
+    center: state.center,
+  };
+}
+
 function getBlackHoleSegmentClockKey(rowIndex, segmentKey) {
   return `row:${rowIndex}:segment:${segmentKey}`;
 }
@@ -867,7 +999,7 @@ function getBlackHoleSegmentPosition({ columns, offset, rowIndex, rows, segmentC
 
   return {
     x: wrappedX,
-    y: clamp((rowIndex + 0.5) / Math.max(1, rows), 0, 1),
+    y: clamp(1 - (rowIndex + 0.5) / Math.max(1, rows), 0, 1),
   };
 }
 
@@ -1035,7 +1167,7 @@ function drawTextTexture(ctx, rows, width, height) {
 
     let x = -fontSize * (0.55 + (typeof row === "string" ? 0 : (row.xShift ?? 0)));
     for (const segment of segments) {
-      const style = getBlackHoleTextRowStyle(segment.tier);
+      const style = getBlackHoleTextSegmentStyle(segment);
       ctx.font = `${style.weight} ${fontSize}px "SFMono-Regular", "Menlo", "Consolas", "PingFang SC", monospace`;
       ctx.fillStyle = `rgba(${style.color}, ${style.alpha})`;
       ctx.fillText(segment.text, x, y);
@@ -1120,7 +1252,11 @@ function renderFrame(state, timestamp) {
   const gl = state.gl;
   const reducedMotion = state.getReducedMotion();
   const time = reducedMotion ? 0 : timestamp / 1000;
-  const motion = getBlackHoleMotion(timestamp, reducedMotion);
+  const motion = updateBlackHoleMotionState(state.motionState, {
+    pointerTarget: state.pointerTracker.getTarget(),
+    reducedMotion,
+    timestamp,
+  });
   updateTextTexture(state, timestamp, motion);
 
   gl.useProgram(state.program);
@@ -1136,7 +1272,7 @@ function renderFrame(state, timestamp) {
   gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
 
-function drawFallbackFrame(canvas, timestamp, getReducedMotion, textOrderSeed, timeDilationState) {
+function drawFallbackFrame(canvas, timestamp, getReducedMotion, textOrderSeed, timeDilationState, motionState, pointerTracker) {
   const rect = canvas.getBoundingClientRect();
   const size = getBlackHoleRenderSize(rect.width, rect.height, window.devicePixelRatio || 1);
   if (canvas.width !== size.width || canvas.height !== size.height) {
@@ -1151,7 +1287,11 @@ function drawFallbackFrame(canvas, timestamp, getReducedMotion, textOrderSeed, t
 
   const reducedMotion = getReducedMotion();
   const metrics = getBlackHoleTextMetrics(size.width, size.height);
-  const motion = getBlackHoleMotion(timestamp, reducedMotion);
+  const motion = updateBlackHoleMotionState(motionState, {
+    pointerTarget: pointerTracker.getTarget(),
+    reducedMotion,
+    timestamp,
+  });
   const date = new Date();
   updateBlackHoleTimeDilationState(timeDilationState, {
     columns: metrics.columns,
@@ -1176,7 +1316,7 @@ function drawFallbackFrame(canvas, timestamp, getReducedMotion, textOrderSeed, t
 
   const unit = Math.min(size.width, size.height);
   const cx = size.width * motion.center.x;
-  const cy = size.height * motion.center.y;
+  const cy = size.height * (1 - motion.center.y);
   const shadowRadius = unit * motion.shadowRadius;
   const diskGradient = ctx.createLinearGradient(cx - shadowRadius * 3.4, cy, cx + shadowRadius * 3.4, cy);
   diskGradient.addColorStop(0, "rgba(84, 126, 178, 0.28)");
@@ -1208,12 +1348,14 @@ function drawFallbackFrame(canvas, timestamp, getReducedMotion, textOrderSeed, t
 function startFallbackRenderer({ canvas, getReducedMotion }) {
   let frameId = 0;
   let lastPaint = 0;
+  const motionState = createBlackHoleMotionState();
+  const pointerTracker = createBlackHolePointerTracker();
   const textOrderSeed = createTextOrderSeed();
   const timeDilationState = createBlackHoleTimeDilationState();
 
   const tick = (timestamp) => {
     if (timestamp - lastPaint >= TEXTURE_UPDATE_MS || lastPaint === 0) {
-      drawFallbackFrame(canvas, timestamp, getReducedMotion, textOrderSeed, timeDilationState);
+      drawFallbackFrame(canvas, timestamp, getReducedMotion, textOrderSeed, timeDilationState, motionState, pointerTracker);
       lastPaint = timestamp;
     }
 
@@ -1226,6 +1368,7 @@ function startFallbackRenderer({ canvas, getReducedMotion }) {
 
   return () => {
     window.cancelAnimationFrame(frameId);
+    pointerTracker.cleanup();
   };
 }
 
@@ -1294,6 +1437,8 @@ export function startBlackHoleBackdropRenderer({ canvas, getReducedMotion = () =
     gl,
     height: 0,
     lastTextureUpdate: 0,
+    motionState: createBlackHoleMotionState(),
+    pointerTracker: createBlackHolePointerTracker(),
     program,
     textCanvas,
     textCtx,
@@ -1317,6 +1462,7 @@ export function startBlackHoleBackdropRenderer({ canvas, getReducedMotion = () =
 
   return () => {
     window.cancelAnimationFrame(frameId);
+    state.pointerTracker.cleanup();
     gl.deleteBuffer(positionBuffer);
     gl.deleteTexture(texture);
     gl.deleteProgram(program);

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   BLACK_HOLE_FRAGMENT_SHADER,
+  createBlackHoleMotionState,
   createBlackHoleTimeDilationState,
   createBlackHoleTextRows,
   createBlackHoleTimeRows,
@@ -10,10 +11,13 @@ import {
   formatLocalizedDateVariants,
   formatTimeVariants,
   getBlackHoleTimeDilationRate,
+  getBlackHolePointerTarget,
   getBlackHoleTextRowStyle,
   getBlackHoleMotion,
   getBlackHoleRenderSize,
   getBlackHoleTextMetrics,
+  updateBlackHoleMotionState,
+  getBlackHoleTextSegmentStyle,
   updateBlackHoleTimeDilationState,
 } from "../src/blackhole-renderer.js";
 
@@ -70,6 +74,19 @@ test("blackhole text rows mix multiple time formats inline", () => {
   assert.ok(rows.some((row) => row.text.includes(" · ")));
 });
 
+test("blackhole lunar text keeps weekday without UTC suffix", () => {
+  const rows = createBlackHoleTextRows({
+    columns: 96,
+    date: new Date(2026, 5, 16, 9, 32, 20),
+    orderSeed: "stable-lunar-weekday",
+    rows: 8,
+  });
+  const text = rows.map((row) => row.text).join("\n");
+
+  assert.match(text, /农历丙午年五月初二 星期二/);
+  assert.doesNotMatch(text, /农历丙午年五月初二 UTC[+-]\d{2}:\d{2}/);
+});
+
 test("blackhole text rows repeat inline time groups with restrained spacing", () => {
   const rows = createBlackHoleTextRows({ columns: 72, rows: 12, date: new Date(2026, 5, 16, 9, 32, 20) });
 
@@ -124,7 +141,7 @@ test("blackhole local clocks diverge by distance from the shadow", () => {
     columns: 96,
     height: 720,
     motion: {
-      center: { x: 0.08, y: 0.06 },
+      center: { x: 0.08, y: 0.94 },
       shadowRadius: 0.035,
     },
     orderSeed: "stable-page-entry",
@@ -166,6 +183,23 @@ test("blackhole text row styles use distinct chromatic hierarchy", () => {
   assert.match(getBlackHoleTextRowStyle("lunar").color, /^168, 238, 220$/);
   assert.match(getBlackHoleTextRowStyle("technical").color, /^204, 186, 255$/);
   assert.match(getBlackHoleTextRowStyle("whisper").color, /^154, 232, 255$/);
+});
+
+test("blackhole technical and localized segments use format-specific accent colors", () => {
+  const technicalSegments = [
+    { key: "precisionClock", tier: "technical" },
+    { key: "unixSeconds", tier: "technical" },
+    { key: "julianDay", tier: "technical" },
+    { key: "epochMilliseconds", tier: "technical" },
+  ];
+  const localizedSegments = [
+    { key: "germanDate", tier: "world" },
+    { key: "frenchDate", tier: "world" },
+  ];
+
+  assert.equal(new Set(technicalSegments.map((segment) => getBlackHoleTextSegmentStyle(segment).color)).size, technicalSegments.length);
+  assert.notEqual(getBlackHoleTextSegmentStyle(localizedSegments[0]).color, getBlackHoleTextSegmentStyle(localizedSegments[1]).color);
+  assert.notEqual(getBlackHoleTextSegmentStyle(technicalSegments[0]).color, getBlackHoleTextRowStyle("technical").color);
 });
 
 test("blackhole time rows keep stable row lengths while time content changes", () => {
@@ -222,4 +256,67 @@ test("blackhole motion grows slowly and collapses near the end of a cycle", () =
   assert.equal(collapsed.shadowRadius, start.shadowRadius);
   assert.ok(start.center.x >= 0.28 && start.center.x <= 0.72);
   assert.ok(start.center.y >= 0.26 && start.center.y <= 0.74);
+});
+
+test("blackhole pointer target converts DOM y to shader UV y", () => {
+  const topTarget = getBlackHolePointerTarget({
+    clientX: 250,
+    clientY: 100,
+    height: 1000,
+    width: 1000,
+  });
+  const bottomTarget = getBlackHolePointerTarget({
+    clientX: 250,
+    clientY: 900,
+    height: 1000,
+    width: 1000,
+  });
+
+  assert.equal(topTarget.x, 0.25);
+  assert.equal(topTarget.y, 0.9);
+  assert.equal(bottomTarget.x, 0.25);
+  assert.equal(Number(bottomTarget.y.toFixed(2)), 0.1);
+  assert.ok(topTarget.y > bottomTarget.y);
+});
+
+test("blackhole motion eases toward the mouse target when the pointer is inside", () => {
+  const state = createBlackHoleMotionState(0);
+  state.center = { x: 0.2, y: 0.2 };
+  const target = { x: 0.82, y: 0.74 };
+  const beforeDistance = Math.hypot(state.center.x - target.x, state.center.y - target.y);
+  const motion = updateBlackHoleMotionState(state, {
+    pointerTarget: target,
+    timestamp: 1000,
+  });
+  const afterDistance = Math.hypot(motion.center.x - target.x, motion.center.y - target.y);
+
+  assert.ok(afterDistance < beforeDistance);
+  assert.ok(motion.center.x > 0.2 && motion.center.x < target.x);
+  assert.ok(motion.center.y > 0.2 && motion.center.y < target.y);
+});
+
+test("blackhole motion keeps drifting toward random targets without the pointer", () => {
+  const state = createBlackHoleMotionState(0);
+  state.center = { x: 0.2, y: 0.2 };
+  const target = getBlackHoleMotion(12000).center;
+  const beforeDistance = Math.hypot(state.center.x - target.x, state.center.y - target.y);
+  const motion = updateBlackHoleMotionState(state, {
+    timestamp: 12000,
+  });
+  const afterDistance = Math.hypot(motion.center.x - target.x, motion.center.y - target.y);
+
+  assert.ok(afterDistance < beforeDistance);
+  assert.ok(motion.center.x >= 0.2 && motion.center.x <= 0.72);
+  assert.ok(motion.center.y >= 0.2 && motion.center.y <= 0.74);
+});
+
+test("blackhole motion does not jump on the first pointer frame", () => {
+  const state = createBlackHoleMotionState();
+  const initialCenter = { ...state.center };
+  const motion = updateBlackHoleMotionState(state, {
+    pointerTarget: { x: 0.9, y: 0.9 },
+    timestamp: 500000,
+  });
+
+  assert.deepEqual(motion.center, initialCenter);
 });

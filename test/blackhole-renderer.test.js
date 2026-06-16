@@ -55,40 +55,52 @@ test("blackhole localized formatters use weekday names without country labels", 
   assert.equal(localized.preciseClock, "09:32:20.123");
 });
 
-test("blackhole text rows use typographic hierarchy instead of a flat list", () => {
+test("blackhole text rows mix multiple time formats inline", () => {
   const rows = createBlackHoleTextRows({ columns: 72, rows: 12, date: new Date(2026, 5, 16, 9, 32, 20) });
-  const tiers = new Set(rows.map((row) => row.tier));
 
   assert.ok(rows.every((row) => row.text.length >= 72));
-  assert.ok(tiers.has("anchor"));
-  assert.ok(tiers.has("lunar"));
-  assert.ok(tiers.has("technical"));
-  assert.ok(tiers.has("whisper"));
-  assert.ok(tiers.has("world"));
-  assert.ok(rows.some((row) => row.tier === "lunar" && row.text.includes("农历丙午年五月初二")));
-  assert.ok(rows.some((row) => row.tier === "world" && row.text.includes("Tuesday, June 16, 2026")));
-  assert.ok(rows.some((row) => row.tier === "world" && row.text.includes("火曜日")));
+  assert.ok(rows.every((row) => row.tier === "inline"));
+  assert.ok(rows.every((row) => new Set(row.segments.map((segment) => segment.tier).filter((tier) => tier !== "separator")).size >= 4));
+  assert.ok(rows.some((row) => row.text.includes("农历丙午年五月初二")));
+  assert.ok(rows.some((row) => row.text.includes("Tuesday, June 16, 2026")));
+  assert.ok(rows.some((row) => row.text.includes("火曜日")));
   assert.ok(rows.some((row) => row.text.includes(" · ")));
 });
 
-test("blackhole text rows repeat ordered time groups with breathing room", () => {
+test("blackhole text rows repeat inline time groups with restrained spacing", () => {
   const rows = createBlackHoleTextRows({ columns: 72, rows: 12, date: new Date(2026, 5, 16, 9, 32, 20) });
-  const groupTiers = ["anchor", "lunar", "world", "civic", "technical", "whisper"];
 
-  assert.deepEqual(rows.slice(0, 6).map((row) => row.tier), groupTiers);
-  assert.deepEqual(rows.slice(6, 12).map((row) => row.tier), groupTiers);
-  assert.ok(rows[5].gapAfter > rows[0].gapAfter);
-  assert.ok(rows[5].gapAfter < 0.6);
-  assert.ok(rows[6].xShift > rows[0].xShift);
+  assert.ok(rows.every((row) => row.gapAfter <= 0.18));
+  assert.ok(rows.some((row) => row.gapAfter > 0.08));
+  assert.ok(rows[5].xShift > rows[0].xShift);
+  assert.ok(rows.every((row) => row.segments.filter((segment) => segment.tier === "separator").length >= 3));
 });
 
-test("blackhole text rows keep anchor rows visually close", () => {
-  const rows = createBlackHoleTextRows({ columns: 72, rows: 12, date: new Date(2026, 5, 16, 9, 32, 20) });
-  const anchorStyle = getBlackHoleTextRowStyle("anchor");
+test("blackhole inline time formats use stable randomized ordering per row", () => {
+  const orderSeed = "test-page-entry";
+  const first = createBlackHoleTextRows({ columns: 72, rows: 8, date: new Date(2026, 5, 16, 9, 32, 20), orderSeed });
+  const second = createBlackHoleTextRows({ columns: 72, rows: 8, date: new Date(2026, 5, 16, 9, 33, 21), orderSeed });
+  const tierOrders = first.map((row) => row.segments.map((segment) => segment.tier).filter((tier) => tier !== "separator").slice(0, 6).join("/"));
 
-  assert.ok(anchorStyle.fontScale < 1.25);
-  assert.ok(anchorStyle.lineScale < 1.4);
-  assert.ok(rows[6].xShift - rows[0].xShift < 0.7);
+  assert.deepEqual(tierOrders, second.map((row) => row.segments.map((segment) => segment.tier).filter((tier) => tier !== "separator").slice(0, 6).join("/")));
+  assert.ok(new Set(tierOrders).size > 4);
+  assert.notEqual(tierOrders[0], "anchor/lunar/world/technical/civic/whisper");
+});
+
+test("blackhole inline time formats reshuffle only for a new page seed", () => {
+  const date = new Date(2026, 5, 16, 9, 32, 20);
+  const first = createBlackHoleTextRows({ columns: 72, rows: 8, date, orderSeed: "first-page-entry" });
+  const second = createBlackHoleTextRows({ columns: 72, rows: 8, date, orderSeed: "second-page-entry" });
+  const getTierOrders = (rows) => rows.map((row) => row.segments.map((segment) => segment.tier).filter((tier) => tier !== "separator").slice(0, 6).join("/"));
+
+  assert.notDeepEqual(getTierOrders(first), getTierOrders(second));
+});
+
+test("blackhole text styles keep a single font size", () => {
+  const tiers = ["anchor", "lunar", "world", "civic", "technical", "whisper", "separator"];
+
+  assert.ok(tiers.every((tier) => !Object.hasOwn(getBlackHoleTextRowStyle(tier), "fontScale")));
+  assert.ok(tiers.every((tier) => !Object.hasOwn(getBlackHoleTextRowStyle(tier), "lineScale")));
 });
 
 test("blackhole text row styles use distinct chromatic hierarchy", () => {
@@ -99,9 +111,10 @@ test("blackhole text row styles use distinct chromatic hierarchy", () => {
   assert.ok(getBlackHoleTextRowStyle("anchor").alpha > getBlackHoleTextRowStyle("world").alpha);
   assert.ok(getBlackHoleTextRowStyle("whisper").alpha < getBlackHoleTextRowStyle("technical").alpha);
   assert.equal(getBlackHoleTextRowStyle("missing"), getBlackHoleTextRowStyle("civic"));
-  assert.match(getBlackHoleTextRowStyle("lunar").color, /^142, 220, 203$/);
-  assert.match(getBlackHoleTextRowStyle("technical").color, /^178, 156, 232$/);
-  assert.match(getBlackHoleTextRowStyle("whisper").color, /^112, 222, 255$/);
+  assert.ok(tiers.every((tier) => getBlackHoleTextRowStyle(tier).alpha >= 0.26));
+  assert.match(getBlackHoleTextRowStyle("lunar").color, /^168, 238, 220$/);
+  assert.match(getBlackHoleTextRowStyle("technical").color, /^204, 186, 255$/);
+  assert.match(getBlackHoleTextRowStyle("whisper").color, /^154, 232, 255$/);
 });
 
 test("blackhole time rows keep stable row lengths while time content changes", () => {

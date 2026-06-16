@@ -37,11 +37,11 @@ const float DISK_INNER = 1.8;
 const float DISK_OUTER = 6.2;
 const float DISK_INCL = 1.50;
 const float DISK_ROLL = 0.10;
-const float DISK_GAIN = 1.14;
+const float DISK_GAIN = 1.20;
 const float DISK_OPACITY = 0.76;
 const float DISK_BEAM = 2.1;
 const float DISK_WIND = 7.0;
-const float EXPOSURE = 1.04;
+const float EXPOSURE = 1.08;
 const int N_STEPS = 28;
 
 mat2 rotate2d(float angle) {
@@ -208,7 +208,7 @@ void main() {
   float bmax = rout + 3.0;
   float window = exp(-pow(plen / (6.2 * u_shadow_radius), 2.0));
 
-  vec3 color = sampleText(v_uv) * 0.68;
+  vec3 color = sampleText(v_uv) * 0.74;
   if (b >= bmax) {
     color = farFieldText(p, plen, b, worldScale, aspect, window);
   } else {
@@ -216,7 +216,7 @@ void main() {
   }
 
   float vignette = smoothstep(0.88, 0.18, distance(v_uv, u_center));
-  color *= 0.42 + vignette * 0.78;
+  color *= 0.46 + vignette * 0.84;
 
   gl_FragColor = vec4(color, 1.0);
 }
@@ -256,12 +256,13 @@ const JA_WEEKDAY_NAMES = ["日曜日", "月曜日", "火曜日", "水曜日", "�
 const WEEKDAY_NAMES = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
 const WEEKDAY_SHORT_NAMES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const TEXT_ROW_STYLES = {
-  anchor: { alpha: 0.38, color: "232, 241, 255", fontScale: 1.18, lineScale: 1.3, weight: 600 },
-  civic: { alpha: 0.24, color: "120, 190, 242", fontScale: 0.92, lineScale: 1.02, weight: 500 },
-  lunar: { alpha: 0.34, color: "142, 220, 203", fontScale: 1.02, lineScale: 1.1, weight: 600 },
-  technical: { alpha: 0.2, color: "178, 156, 232", fontScale: 0.84, lineScale: 0.96, weight: 400 },
-  whisper: { alpha: 0.16, color: "112, 222, 255", fontScale: 0.78, lineScale: 0.86, weight: 400 },
-  world: { alpha: 0.24, color: "230, 166, 190", fontScale: 0.88, lineScale: 0.98, weight: 500 },
+  anchor: { alpha: 0.5, color: "246, 250, 255", weight: 600 },
+  civic: { alpha: 0.34, color: "146, 208, 255", weight: 500 },
+  lunar: { alpha: 0.44, color: "168, 238, 220", weight: 600 },
+  separator: { alpha: 0.22, color: "178, 202, 232", weight: 400 },
+  technical: { alpha: 0.32, color: "204, 186, 255", weight: 450 },
+  whisper: { alpha: 0.28, color: "154, 232, 255", weight: 400 },
+  world: { alpha: 0.36, color: "255, 188, 218", weight: 500 },
 };
 
 function createChineseLunarFormatter() {
@@ -385,8 +386,60 @@ function repeatToColumns(text, columns) {
   return repeated.slice(0, columns + 8);
 }
 
-function joinTimeTokens(tokens) {
-  return tokens.join(" · ");
+function createSeparatorSegment() {
+  return { text: "   ·   ", tier: "separator" };
+}
+
+function hashTextUnit(text) {
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return (hash >>> 0) / 4294967296;
+}
+
+function shuffleSegments(segments, seed) {
+  return segments
+    .map((segment, index) => ({
+      order: hashTextUnit(`${seed}:${index}:${segment.tier}`),
+      segment,
+    }))
+    .sort((first, second) => first.order - second.order)
+    .map((entry) => entry.segment);
+}
+
+function createTextOrderSeed() {
+  const random = typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}:${Math.random()}`;
+
+  return `blackhole-text-order:${random}`;
+}
+
+function createInlineSegments(segments, columns, offset = 0) {
+  const safeColumns = Math.max(1, Math.floor(columns));
+  const repeatedSegments = offset > 0 ? [{ text: " ".repeat(offset), tier: "separator" }] : [];
+  const baseSegments = segments.flatMap((segment) => [segment, createSeparatorSegment()]);
+  let textLength = repeatedSegments.reduce((total, segment) => total + segment.text.length, 0);
+  const appendBaseSegments = () => {
+    for (const segment of baseSegments) {
+      repeatedSegments.push({ ...segment });
+      textLength += segment.text.length;
+    }
+  };
+
+  appendBaseSegments();
+  while (textLength < safeColumns + 16) {
+    appendBaseSegments();
+  }
+
+  return repeatedSegments;
+}
+
+function segmentsToText(segments) {
+  return segments.map((segment) => segment.text).join("");
 }
 
 export function formatLocalizedDateVariants(date) {
@@ -507,12 +560,58 @@ function createBlackHoleTextPatterns(date) {
   } = getTimeParts(date);
 
   return [
-    { gapAfter: 0.08, offset: 0, text: `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`, tier: "anchor", xShift: 0 },
-    { gapAfter: 0.04, offset: 8, text: joinTimeTokens([lunarDate, weekday, formatUtcOffset(date)]), tier: "lunar", xShift: 0.9 },
-    { gapAfter: 0.04, offset: 12, text: joinTimeTokens([localized.american, localized.japanese, localized.german]), tier: "world", xShift: 1.1 },
-    { gapAfter: 0, offset: 4, text: joinTimeTokens([`${isoWeek.year}-W${pad2(isoWeek.week)}-${isoWeekday}`, `DAY ${String(dayOfYear).padStart(3, "0")}`, `Q${quarter}`]), tier: "civic", xShift: 0.3 },
-    { gapAfter: 0.02, offset: 16, text: joinTimeTokens([`PRECISION ${localized.preciseClock}`, `UNIX ${unixSeconds}`, `JD ${formatJulianDay(date)}`]), tier: "technical", xShift: 1.4 },
-    { gapAfter: 0.48, offset: 6, text: joinTimeTokens([chineseDateTime, `今日进度 ${dayProgress}%`, `距午夜 ${formatDuration(86400 - secondsSinceMidnight)}`]), tier: "whisper", xShift: 0.6 },
+    {
+      gapAfter: 0.04,
+      offset: 0,
+      segments: [
+        { text: `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`, tier: "anchor" },
+        { text: lunarDate, tier: "lunar" },
+        { text: localized.american, tier: "world" },
+        { text: `PRECISION ${localized.preciseClock}`, tier: "technical" },
+        { text: `${isoWeek.year}-W${pad2(isoWeek.week)}-${isoWeekday}`, tier: "civic" },
+        { text: `今日进度 ${dayProgress}%`, tier: "whisper" },
+      ],
+      xShift: 0,
+    },
+    {
+      gapAfter: 0.06,
+      offset: 8,
+      segments: [
+        { text: `${yyyy} ${mm}-${dd} ${hh}:${mi}:${ss}`, tier: "anchor" },
+        { text: localized.japanese, tier: "world" },
+        { text: `${lunarDate} ${weekday}`, tier: "lunar" },
+        { text: `UNIX ${unixSeconds}`, tier: "technical" },
+        { text: `DAY ${String(dayOfYear).padStart(3, "0")} Q${quarter}`, tier: "civic" },
+        { text: `距午夜 ${formatDuration(86400 - secondsSinceMidnight)}`, tier: "whisper" },
+      ],
+      xShift: 0.18,
+    },
+    {
+      gapAfter: 0.04,
+      offset: 15,
+      segments: [
+        { text: `${pad2(hour12)}:${mi}:${ss} ${amPm}`, tier: "anchor" },
+        { text: localized.british, tier: "world" },
+        { text: chineseDateTime, tier: "lunar" },
+        { text: `JD ${formatJulianDay(date)}`, tier: "technical" },
+        { text: `${weekdayShort} ${formatUtcOffset(date)}`, tier: "civic" },
+        { text: `${dayProgress}% of today`, tier: "whisper" },
+      ],
+      xShift: 0.34,
+    },
+    {
+      gapAfter: 0.12,
+      offset: 4,
+      segments: [
+        { text: `${yyyy}/${mm}/${dd} ${hh}:${mi}:${ss}`, tier: "anchor" },
+        { text: localized.german, tier: "world" },
+        { text: localized.french, tier: "world" },
+        { text: `${lunarDate} ${formatUtcOffset(date)}`, tier: "lunar" },
+        { text: `EPOCH ${date.getTime()}ms`, tier: "technical" },
+        { text: `${yyyy} 第${formatChineseNumber(isoWeek.week)}周`, tier: "civic" },
+      ],
+      xShift: 0.1,
+    },
   ];
 }
 
@@ -579,20 +678,25 @@ export function formatTimeVariants(date) {
   ];
 }
 
-export function createBlackHoleTextRows({ columns, rows, date = new Date(), phase = 0 }) {
+export function createBlackHoleTextRows({ columns, rows, date = new Date(), phase = 0, orderSeed = "blackhole-text-order:default" }) {
   const safeColumns = Math.max(1, Math.floor(columns));
   const safeRows = Math.max(1, Math.floor(rows));
   const patterns = createBlackHoleTextPatterns(date);
 
   return Array.from({ length: safeRows }, (_, index) => {
-    const pattern = patterns[(index + phase) % patterns.length];
+    const patternIndex = (index + phase) % patterns.length;
+    const pattern = patterns[patternIndex];
     const block = Math.floor((index + phase) / patterns.length);
-    const rowOffset = (pattern.offset + block * 7) % 28;
+    const rowOffset = (pattern.offset + block * 6) % 24;
+    const shuffledSegments = shuffleSegments(pattern.segments, `${orderSeed}:${phase}:${index}:${patternIndex}:${block}`);
+    const segments = createInlineSegments(shuffledSegments, safeColumns, rowOffset);
+
     return {
       gapAfter: pattern.gapAfter,
-      text: repeatToColumns(`${" ".repeat(rowOffset)}${pattern.text}`, safeColumns),
-      tier: pattern.tier,
-      xShift: pattern.xShift + (block % 3) * 0.58,
+      segments,
+      text: segmentsToText(segments),
+      tier: "inline",
+      xShift: pattern.xShift + (block % 3) * 0.36,
     };
   });
 }
@@ -732,19 +836,23 @@ function drawTextTexture(ctx, rows, width, height) {
 
   let y = -metrics.lineHeight * 1.1;
   rows.forEach((row) => {
-    const text = typeof row === "string" ? row : row.text;
-    const tier = typeof row === "string" ? "civic" : row.tier;
-    const style = getBlackHoleTextRowStyle(tier);
-    const fontSize = Math.max(10, Math.round(metrics.fontSize * style.fontScale));
-    const lineHeight = Math.round(metrics.lineHeight * style.lineScale);
+    const segments = typeof row === "string" ? [{ text: row, tier: "civic" }] : (row.segments ?? [{ text: row.text, tier: row.tier }]);
+    const fontSize = metrics.fontSize;
+    const lineHeight = metrics.lineHeight;
     if (y > height || y < -metrics.lineHeight * 2) {
       y += lineHeight;
       return;
     }
 
-    ctx.font = `${style.weight} ${fontSize}px "SFMono-Regular", "Menlo", "Consolas", "PingFang SC", monospace`;
-    ctx.fillStyle = `rgba(${style.color}, ${style.alpha})`;
-    ctx.fillText(text, -fontSize * (0.55 + (row.xShift ?? 0)), y);
+    let x = -fontSize * (0.55 + (typeof row === "string" ? 0 : (row.xShift ?? 0)));
+    for (const segment of segments) {
+      const style = getBlackHoleTextRowStyle(segment.tier);
+      ctx.font = `${style.weight} ${fontSize}px "SFMono-Regular", "Menlo", "Consolas", "PingFang SC", monospace`;
+      ctx.fillStyle = `rgba(${style.color}, ${style.alpha})`;
+      ctx.fillText(segment.text, x, y);
+      x += ctx.measureText(segment.text).width;
+    }
+
     y += lineHeight + metrics.lineHeight * (row.gapAfter ?? 0);
   });
 }
@@ -790,6 +898,7 @@ function updateTextTexture(state, timestamp) {
   const rows = createBlackHoleTextRows({
     columns: metrics.columns,
     date: new Date(),
+    orderSeed: state.textOrderSeed,
     phase: 0,
     rows: metrics.rows,
   });
@@ -825,7 +934,7 @@ function renderFrame(state, timestamp) {
   gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
 
-function drawFallbackFrame(canvas, timestamp, getReducedMotion) {
+function drawFallbackFrame(canvas, timestamp, getReducedMotion, textOrderSeed) {
   const rect = canvas.getBoundingClientRect();
   const size = getBlackHoleRenderSize(rect.width, rect.height, window.devicePixelRatio || 1);
   if (canvas.width !== size.width || canvas.height !== size.height) {
@@ -843,6 +952,7 @@ function drawFallbackFrame(canvas, timestamp, getReducedMotion) {
   const rows = createBlackHoleTextRows({
     columns: metrics.columns,
     date: new Date(),
+    orderSeed: textOrderSeed,
     phase: 0,
     rows: metrics.rows,
   });
@@ -883,10 +993,11 @@ function drawFallbackFrame(canvas, timestamp, getReducedMotion) {
 function startFallbackRenderer({ canvas, getReducedMotion }) {
   let frameId = 0;
   let lastPaint = 0;
+  const textOrderSeed = createTextOrderSeed();
 
   const tick = (timestamp) => {
     if (timestamp - lastPaint >= TEXTURE_UPDATE_MS || lastPaint === 0) {
-      drawFallbackFrame(canvas, timestamp, getReducedMotion);
+      drawFallbackFrame(canvas, timestamp, getReducedMotion, textOrderSeed);
       lastPaint = timestamp;
     }
 
@@ -970,6 +1081,7 @@ export function startBlackHoleBackdropRenderer({ canvas, getReducedMotion = () =
     program,
     textCanvas,
     textCtx,
+    textOrderSeed: createTextOrderSeed(),
     texture,
     uniforms,
     width: 0,

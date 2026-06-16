@@ -5,6 +5,9 @@ const MOTION_SEGMENT_MS = 11000;
 const MOTION_CYCLE_MS = 38000;
 const MIN_SHADOW_RADIUS = 0.032;
 const MAX_SHADOW_RADIUS = 0.078;
+const MIN_TIME_DILATION_RATE = 0.045;
+const TIME_DILATION_INNER_RADIUS = 1.35;
+const TIME_DILATION_OUTER_RADIUS = 8.4;
 
 const VERTEX_SHADER_SOURCE = `
 attribute vec2 a_position;
@@ -264,6 +267,60 @@ const TEXT_ROW_STYLES = {
   whisper: { alpha: 0.28, color: "154, 232, 255", weight: 400 },
   world: { alpha: 0.36, color: "255, 188, 218", weight: 500 },
 };
+const BLACK_HOLE_TEXT_PATTERN_SPECS = [
+  {
+    gapAfter: 0.04,
+    offset: 0,
+    segments: [
+      { key: "isoClock", tier: "anchor" },
+      { key: "lunarDate", tier: "lunar" },
+      { key: "americanDate", tier: "world" },
+      { key: "precisionClock", tier: "technical" },
+      { key: "isoWeek", tier: "civic" },
+      { key: "dayProgressCn", tier: "whisper" },
+    ],
+    xShift: 0,
+  },
+  {
+    gapAfter: 0.06,
+    offset: 8,
+    segments: [
+      { key: "spacedClock", tier: "anchor" },
+      { key: "japaneseDate", tier: "world" },
+      { key: "lunarWeekday", tier: "lunar" },
+      { key: "unixSeconds", tier: "technical" },
+      { key: "dayQuarter", tier: "civic" },
+      { key: "untilMidnight", tier: "whisper" },
+    ],
+    xShift: 0.18,
+  },
+  {
+    gapAfter: 0.04,
+    offset: 15,
+    segments: [
+      { key: "ampmClock", tier: "anchor" },
+      { key: "britishDate", tier: "world" },
+      { key: "chineseDateTime", tier: "lunar" },
+      { key: "julianDay", tier: "technical" },
+      { key: "weekdayOffset", tier: "civic" },
+      { key: "dayProgressEn", tier: "whisper" },
+    ],
+    xShift: 0.34,
+  },
+  {
+    gapAfter: 0.12,
+    offset: 4,
+    segments: [
+      { key: "slashClock", tier: "anchor" },
+      { key: "germanDate", tier: "world" },
+      { key: "frenchDate", tier: "world" },
+      { key: "lunarOffset", tier: "lunar" },
+      { key: "epochMilliseconds", tier: "technical" },
+      { key: "chineseWeek", tier: "civic" },
+    ],
+    xShift: 0.1,
+  },
+];
 
 function createChineseLunarFormatter() {
   try {
@@ -532,7 +589,7 @@ function getTimeParts(date) {
   };
 }
 
-function createBlackHoleTextPatterns(date) {
+function formatBlackHoleTextSegment(key, date) {
   const {
     amPm,
     chineseDateTime,
@@ -559,60 +616,80 @@ function createBlackHoleTextPatterns(date) {
     yyyy,
   } = getTimeParts(date);
 
-  return [
-    {
-      gapAfter: 0.04,
-      offset: 0,
-      segments: [
-        { text: `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`, tier: "anchor" },
-        { text: lunarDate, tier: "lunar" },
-        { text: localized.american, tier: "world" },
-        { text: `PRECISION ${localized.preciseClock}`, tier: "technical" },
-        { text: `${isoWeek.year}-W${pad2(isoWeek.week)}-${isoWeekday}`, tier: "civic" },
-        { text: `今日进度 ${dayProgress}%`, tier: "whisper" },
-      ],
-      xShift: 0,
-    },
-    {
-      gapAfter: 0.06,
-      offset: 8,
-      segments: [
-        { text: `${yyyy} ${mm}-${dd} ${hh}:${mi}:${ss}`, tier: "anchor" },
-        { text: localized.japanese, tier: "world" },
-        { text: `${lunarDate} ${weekday}`, tier: "lunar" },
-        { text: `UNIX ${unixSeconds}`, tier: "technical" },
-        { text: `DAY ${String(dayOfYear).padStart(3, "0")} Q${quarter}`, tier: "civic" },
-        { text: `距午夜 ${formatDuration(86400 - secondsSinceMidnight)}`, tier: "whisper" },
-      ],
-      xShift: 0.18,
-    },
-    {
-      gapAfter: 0.04,
-      offset: 15,
-      segments: [
-        { text: `${pad2(hour12)}:${mi}:${ss} ${amPm}`, tier: "anchor" },
-        { text: localized.british, tier: "world" },
-        { text: chineseDateTime, tier: "lunar" },
-        { text: `JD ${formatJulianDay(date)}`, tier: "technical" },
-        { text: `${weekdayShort} ${formatUtcOffset(date)}`, tier: "civic" },
-        { text: `${dayProgress}% of today`, tier: "whisper" },
-      ],
-      xShift: 0.34,
-    },
-    {
-      gapAfter: 0.12,
-      offset: 4,
-      segments: [
-        { text: `${yyyy}/${mm}/${dd} ${hh}:${mi}:${ss}`, tier: "anchor" },
-        { text: localized.german, tier: "world" },
-        { text: localized.french, tier: "world" },
-        { text: `${lunarDate} ${formatUtcOffset(date)}`, tier: "lunar" },
-        { text: `EPOCH ${date.getTime()}ms`, tier: "technical" },
-        { text: `${yyyy} 第${formatChineseNumber(isoWeek.week)}周`, tier: "civic" },
-      ],
-      xShift: 0.1,
-    },
-  ];
+  switch (key) {
+    case "americanDate":
+      return localized.american;
+    case "ampmClock":
+      return `${pad2(hour12)}:${mi}:${ss} ${amPm}`;
+    case "britishDate":
+      return localized.british;
+    case "chineseDateTime":
+      return chineseDateTime;
+    case "chineseWeek":
+      return `${yyyy} 第${formatChineseNumber(isoWeek.week)}周`;
+    case "dayProgressCn":
+      return `今日进度 ${dayProgress}%`;
+    case "dayProgressEn":
+      return `${dayProgress}% of today`;
+    case "dayQuarter":
+      return `DAY ${String(dayOfYear).padStart(3, "0")} Q${quarter}`;
+    case "epochMilliseconds":
+      return `EPOCH ${date.getTime()}ms`;
+    case "frenchDate":
+      return localized.french;
+    case "germanDate":
+      return localized.german;
+    case "isoClock":
+      return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+    case "isoWeek":
+      return `${isoWeek.year}-W${pad2(isoWeek.week)}-${isoWeekday}`;
+    case "japaneseDate":
+      return localized.japanese;
+    case "julianDay":
+      return `JD ${formatJulianDay(date)}`;
+    case "lunarDate":
+      return lunarDate;
+    case "lunarOffset":
+      return `${lunarDate} ${formatUtcOffset(date)}`;
+    case "lunarWeekday":
+      return `${lunarDate} ${weekday}`;
+    case "precisionClock":
+      return `PRECISION ${localized.preciseClock}`;
+    case "slashClock":
+      return `${yyyy}/${mm}/${dd} ${hh}:${mi}:${ss}`;
+    case "spacedClock":
+      return `${yyyy} ${mm}-${dd} ${hh}:${mi}:${ss}`;
+    case "unixSeconds":
+      return `UNIX ${unixSeconds}`;
+    case "untilMidnight":
+      return `距午夜 ${formatDuration(86400 - secondsSinceMidnight)}`;
+    case "weekdayOffset":
+      return `${weekdayShort} ${formatUtcOffset(date)}`;
+    default:
+      return `${yyyy}-${mm}-${dd} ${hh}:${mi}:${ss}`;
+  }
+}
+
+function createBlackHoleTextPattern(patternIndex, date, getSegmentDate = () => date, rowIndex = 0) {
+  const pattern = BLACK_HOLE_TEXT_PATTERN_SPECS[patternIndex];
+
+  return {
+    ...pattern,
+    segments: pattern.segments.map((segment, segmentIndex) => {
+      const segmentDate = getSegmentDate({
+        key: segment.key,
+        patternIndex,
+        rowIndex,
+        segmentIndex,
+        tier: segment.tier,
+      }) ?? date;
+
+      return {
+        ...segment,
+        text: formatBlackHoleTextSegment(segment.key, segmentDate),
+      };
+    }),
+  };
 }
 
 export function formatTimeVariants(date) {
@@ -678,15 +755,14 @@ export function formatTimeVariants(date) {
   ];
 }
 
-export function createBlackHoleTextRows({ columns, rows, date = new Date(), phase = 0, orderSeed = "blackhole-text-order:default" }) {
+export function createBlackHoleTextRows({ columns, rows, date = new Date(), phase = 0, orderSeed = "blackhole-text-order:default", getSegmentDate = () => date }) {
   const safeColumns = Math.max(1, Math.floor(columns));
   const safeRows = Math.max(1, Math.floor(rows));
-  const patterns = createBlackHoleTextPatterns(date);
 
   return Array.from({ length: safeRows }, (_, index) => {
-    const patternIndex = (index + phase) % patterns.length;
-    const pattern = patterns[patternIndex];
-    const block = Math.floor((index + phase) / patterns.length);
+    const patternIndex = (index + phase) % BLACK_HOLE_TEXT_PATTERN_SPECS.length;
+    const pattern = createBlackHoleTextPattern(patternIndex, date, getSegmentDate, index);
+    const block = Math.floor((index + phase) / BLACK_HOLE_TEXT_PATTERN_SPECS.length);
     const rowOffset = (pattern.offset + block * 6) % 24;
     const shuffledSegments = shuffleSegments(pattern.segments, `${orderSeed}:${phase}:${index}:${patternIndex}:${block}`);
     const segments = createInlineSegments(shuffledSegments, safeColumns, rowOffset);
@@ -777,6 +853,119 @@ export function getBlackHoleMotion(timestamp, reducedMotion = false) {
     intensity,
     shadowRadius: MIN_SHADOW_RADIUS + (MAX_SHADOW_RADIUS - MIN_SHADOW_RADIUS) * intensity,
   };
+}
+
+function getBlackHoleSegmentClockKey(rowIndex, segmentKey) {
+  return `row:${rowIndex}:segment:${segmentKey}`;
+}
+
+function getBlackHoleSegmentPosition({ columns, offset, rowIndex, rows, segmentCount, segmentIndex, xShift }) {
+  const safeColumns = Math.max(1, columns);
+  const offsetRatio = (offset % safeColumns) / safeColumns;
+  const rawX = ((segmentIndex + 0.5) / Math.max(1, segmentCount)) + offsetRatio - xShift * 0.035;
+  const wrappedX = ((rawX % 1) + 1) % 1;
+
+  return {
+    x: wrappedX,
+    y: clamp((rowIndex + 0.5) / Math.max(1, rows), 0, 1),
+  };
+}
+
+export function getBlackHoleTimeDilationRate({ height = 1, motion, position, width = 1 }) {
+  const unit = Math.max(1, Math.min(width, height));
+  const dx = (position.x - motion.center.x) * width / unit;
+  const dy = (position.y - motion.center.y) * height / unit;
+  const distance = Math.hypot(dx, dy);
+  const innerRadius = motion.shadowRadius * TIME_DILATION_INNER_RADIUS;
+  const outerRadius = motion.shadowRadius * TIME_DILATION_OUTER_RADIUS;
+  const distanceProgress = smoothStep((distance - innerRadius) / Math.max(0.001, outerRadius - innerRadius));
+
+  return MIN_TIME_DILATION_RATE + (1 - MIN_TIME_DILATION_RATE) * distanceProgress;
+}
+
+export function createBlackHoleTimeDilationState(startTimeMs = Date.now()) {
+  return {
+    clocks: new Map(),
+    lastUpdateMs: startTimeMs,
+  };
+}
+
+export function updateBlackHoleTimeDilationState(
+  state,
+  {
+    columns,
+    date = new Date(),
+    height = 1,
+    motion,
+    orderSeed = "blackhole-text-order:default",
+    phase = 0,
+    rows,
+    width = 1,
+  },
+) {
+  const nowMs = date.getTime();
+  const previousMs = Number.isFinite(state.lastUpdateMs) ? state.lastUpdateMs : nowMs;
+  const deltaMs = Math.max(0, nowMs - previousMs);
+  const safeColumns = Math.max(1, Math.floor(columns));
+  const safeRows = Math.max(1, Math.floor(rows));
+  const activeClockKeys = new Set();
+
+  state.lastUpdateMs = nowMs;
+
+  for (let rowIndex = 0; rowIndex < safeRows; rowIndex += 1) {
+    const patternIndex = (rowIndex + phase) % BLACK_HOLE_TEXT_PATTERN_SPECS.length;
+    const pattern = BLACK_HOLE_TEXT_PATTERN_SPECS[patternIndex];
+    const block = Math.floor((rowIndex + phase) / BLACK_HOLE_TEXT_PATTERN_SPECS.length);
+    const rowOffset = (pattern.offset + block * 6) % 24;
+    const shuffledSegments = shuffleSegments(pattern.segments, `${orderSeed}:${phase}:${rowIndex}:${patternIndex}:${block}`);
+
+    shuffledSegments.forEach((segment, segmentIndex) => {
+      const clockKey = getBlackHoleSegmentClockKey(rowIndex, segment.key);
+      const position = getBlackHoleSegmentPosition({
+        columns: safeColumns,
+        offset: rowOffset,
+        rowIndex,
+        rows: safeRows,
+        segmentCount: shuffledSegments.length,
+        segmentIndex,
+        xShift: pattern.xShift + (block % 3) * 0.36,
+      });
+      const rate = getBlackHoleTimeDilationRate({
+        height,
+        motion,
+        position,
+        width,
+      });
+      const clock = state.clocks.get(clockKey);
+      const nextClock = clock
+        ? {
+          rate,
+          timeMs: clock.timeMs + deltaMs * rate,
+        }
+        : {
+          rate,
+          timeMs: nowMs,
+        };
+
+      state.clocks.set(clockKey, nextClock);
+      activeClockKeys.add(clockKey);
+    });
+  }
+
+  for (const clockKey of state.clocks.keys()) {
+    if (!activeClockKeys.has(clockKey)) {
+      state.clocks.delete(clockKey);
+    }
+  }
+
+  return state;
+}
+
+function getBlackHoleSegmentDate(timeDilationState, segmentInfo, fallbackDate) {
+  const clockKey = getBlackHoleSegmentClockKey(segmentInfo.rowIndex, segmentInfo.key);
+  const clock = timeDilationState.clocks.get(clockKey);
+
+  return clock ? new Date(clock.timeMs) : fallbackDate;
 }
 
 function createShader(gl, type, source) {
@@ -889,15 +1078,28 @@ function resizeRenderer(state) {
   state.gl.viewport(0, 0, size.width, size.height);
 }
 
-function updateTextTexture(state, timestamp) {
+function updateTextTexture(state, timestamp, motion) {
   if (timestamp - state.lastTextureUpdate < TEXTURE_UPDATE_MS && state.lastTextureUpdate !== 0) {
     return;
   }
 
+  const date = new Date();
   const metrics = getBlackHoleTextMetrics(state.width, state.height);
+  updateBlackHoleTimeDilationState(state.timeDilationState, {
+    columns: metrics.columns,
+    date,
+    height: state.height,
+    motion,
+    orderSeed: state.textOrderSeed,
+    phase: 0,
+    rows: metrics.rows,
+    width: state.width,
+  });
+
   const rows = createBlackHoleTextRows({
     columns: metrics.columns,
-    date: new Date(),
+    date,
+    getSegmentDate: (segmentInfo) => getBlackHoleSegmentDate(state.timeDilationState, segmentInfo, date),
     orderSeed: state.textOrderSeed,
     phase: 0,
     rows: metrics.rows,
@@ -919,7 +1121,7 @@ function renderFrame(state, timestamp) {
   const reducedMotion = state.getReducedMotion();
   const time = reducedMotion ? 0 : timestamp / 1000;
   const motion = getBlackHoleMotion(timestamp, reducedMotion);
-  updateTextTexture(state, timestamp);
+  updateTextTexture(state, timestamp, motion);
 
   gl.useProgram(state.program);
   gl.activeTexture(gl.TEXTURE0);
@@ -934,7 +1136,7 @@ function renderFrame(state, timestamp) {
   gl.drawArrays(gl.TRIANGLES, 0, 6);
 }
 
-function drawFallbackFrame(canvas, timestamp, getReducedMotion, textOrderSeed) {
+function drawFallbackFrame(canvas, timestamp, getReducedMotion, textOrderSeed, timeDilationState) {
   const rect = canvas.getBoundingClientRect();
   const size = getBlackHoleRenderSize(rect.width, rect.height, window.devicePixelRatio || 1);
   if (canvas.width !== size.width || canvas.height !== size.height) {
@@ -949,9 +1151,23 @@ function drawFallbackFrame(canvas, timestamp, getReducedMotion, textOrderSeed) {
 
   const reducedMotion = getReducedMotion();
   const metrics = getBlackHoleTextMetrics(size.width, size.height);
+  const motion = getBlackHoleMotion(timestamp, reducedMotion);
+  const date = new Date();
+  updateBlackHoleTimeDilationState(timeDilationState, {
+    columns: metrics.columns,
+    date,
+    height: size.height,
+    motion,
+    orderSeed: textOrderSeed,
+    phase: 0,
+    rows: metrics.rows,
+    width: size.width,
+  });
+
   const rows = createBlackHoleTextRows({
     columns: metrics.columns,
-    date: new Date(),
+    date,
+    getSegmentDate: (segmentInfo) => getBlackHoleSegmentDate(timeDilationState, segmentInfo, date),
     orderSeed: textOrderSeed,
     phase: 0,
     rows: metrics.rows,
@@ -959,7 +1175,6 @@ function drawFallbackFrame(canvas, timestamp, getReducedMotion, textOrderSeed) {
   drawTextTexture(ctx, rows, size.width, size.height);
 
   const unit = Math.min(size.width, size.height);
-  const motion = getBlackHoleMotion(timestamp, reducedMotion);
   const cx = size.width * motion.center.x;
   const cy = size.height * motion.center.y;
   const shadowRadius = unit * motion.shadowRadius;
@@ -994,10 +1209,11 @@ function startFallbackRenderer({ canvas, getReducedMotion }) {
   let frameId = 0;
   let lastPaint = 0;
   const textOrderSeed = createTextOrderSeed();
+  const timeDilationState = createBlackHoleTimeDilationState();
 
   const tick = (timestamp) => {
     if (timestamp - lastPaint >= TEXTURE_UPDATE_MS || lastPaint === 0) {
-      drawFallbackFrame(canvas, timestamp, getReducedMotion, textOrderSeed);
+      drawFallbackFrame(canvas, timestamp, getReducedMotion, textOrderSeed, timeDilationState);
       lastPaint = timestamp;
     }
 
@@ -1082,6 +1298,7 @@ export function startBlackHoleBackdropRenderer({ canvas, getReducedMotion = () =
     textCanvas,
     textCtx,
     textOrderSeed: createTextOrderSeed(),
+    timeDilationState: createBlackHoleTimeDilationState(),
     texture,
     uniforms,
     width: 0,

@@ -3,15 +3,18 @@ import test from "node:test";
 
 import {
   BLACK_HOLE_FRAGMENT_SHADER,
+  createBlackHoleTimeDilationState,
   createBlackHoleTextRows,
   createBlackHoleTimeRows,
   formatChineseLunarDate,
   formatLocalizedDateVariants,
   formatTimeVariants,
+  getBlackHoleTimeDilationRate,
   getBlackHoleTextRowStyle,
   getBlackHoleMotion,
   getBlackHoleRenderSize,
   getBlackHoleTextMetrics,
+  updateBlackHoleTimeDilationState,
 } from "../src/blackhole-renderer.js";
 
 test("blackhole time variants include numeric and Chinese formats", () => {
@@ -94,6 +97,54 @@ test("blackhole inline time formats reshuffle only for a new page seed", () => {
   const getTierOrders = (rows) => rows.map((row) => row.segments.map((segment) => segment.tier).filter((tier) => tier !== "separator").slice(0, 6).join("/"));
 
   assert.notDeepEqual(getTierOrders(first), getTierOrders(second));
+});
+
+test("blackhole time dilation rate slows down near the shadow", () => {
+  const motion = {
+    center: { x: 0.12, y: 0.16 },
+    shadowRadius: 0.04,
+  };
+  const nearRate = getBlackHoleTimeDilationRate({
+    motion,
+    position: { x: 0.12, y: 0.16 },
+  });
+  const farRate = getBlackHoleTimeDilationRate({
+    motion,
+    position: { x: 0.9, y: 0.86 },
+  });
+
+  assert.ok(nearRate < 0.08);
+  assert.ok(farRate > 0.96);
+});
+
+test("blackhole local clocks diverge by distance from the shadow", () => {
+  const startMs = new Date(2026, 5, 16, 9, 32, 20).getTime();
+  const state = createBlackHoleTimeDilationState(startMs);
+  const updateOptions = {
+    columns: 96,
+    height: 720,
+    motion: {
+      center: { x: 0.08, y: 0.06 },
+      shadowRadius: 0.035,
+    },
+    orderSeed: "stable-page-entry",
+    rows: 8,
+    width: 1280,
+  };
+
+  updateBlackHoleTimeDilationState(state, {
+    ...updateOptions,
+    date: new Date(startMs),
+  });
+  updateBlackHoleTimeDilationState(state, {
+    ...updateOptions,
+    date: new Date(startMs + 1000),
+  });
+
+  const elapsedTimes = [...state.clocks.values()].map((clock) => clock.timeMs - startMs);
+  assert.equal(elapsedTimes.length, 48);
+  assert.ok(Math.min(...elapsedTimes) < 120);
+  assert.ok(Math.max(...elapsedTimes) > 920);
 });
 
 test("blackhole text styles keep a single font size", () => {

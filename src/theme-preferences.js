@@ -1,28 +1,36 @@
 export const DEFAULT_THEME_KEY = "minimal";
-export const THEME_STORAGE_KEY = "watch-face-theme";
+export const THEME_QUERY_PARAM = "theme";
 
-export function isThemeKey(themeKey, themesByKey) {
-  return typeof themeKey === "string" && Object.hasOwn(themesByKey, themeKey);
+export function normalizeThemeSlug(themeSlug) {
+  return typeof themeSlug === "string" ? themeSlug.trim().toLowerCase() : "";
 }
 
-export function readThemePreference(storage, themesByKey, fallback = DEFAULT_THEME_KEY) {
-  try {
-    const storedThemeKey = storage?.getItem(THEME_STORAGE_KEY);
-    return isThemeKey(storedThemeKey, themesByKey) ? storedThemeKey : fallback;
-  } catch {
-    return fallback;
-  }
+export function getThemeSlug(themeKey, options) {
+  return options.find((option) => option.key === themeKey)?.slug ?? "";
 }
 
-export function writeThemePreference(storage, themeKey, themesByKey) {
-  if (!isThemeKey(themeKey, themesByKey)) {
-    return false;
+export function resolveThemeKeyFromSlug(themeSlug, options, fallback = DEFAULT_THEME_KEY) {
+  const normalizedSlug = normalizeThemeSlug(themeSlug);
+  const option = options.find((themeOption) => themeOption.slug === normalizedSlug || themeOption.key === normalizedSlug);
+
+  return option?.key ?? fallback;
+}
+
+export function readThemeFromSearch(search, options, fallback = DEFAULT_THEME_KEY) {
+  const params = new URLSearchParams(search);
+
+  return resolveThemeKeyFromSlug(params.get(THEME_QUERY_PARAM), options, fallback);
+}
+
+export function buildThemeSearch(search, themeKey, options) {
+  const themeSlug = getThemeSlug(themeKey, options);
+  if (!themeSlug) {
+    return null;
   }
 
-  try {
-    storage?.setItem(THEME_STORAGE_KEY, themeKey);
-    return true;
-  } catch {
-    return false;
-  }
+  const params = new URLSearchParams(search);
+  params.set(THEME_QUERY_PARAM, themeSlug);
+  const nextSearch = params.toString();
+
+  return nextSearch ? `?${nextSearch}` : "";
 }

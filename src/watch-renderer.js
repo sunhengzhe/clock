@@ -36,6 +36,19 @@ export const themes = {
     glowGreenRgb: "58, 196, 184",
     minuteRgb: "93, 226, 210",
     secondRgb: "142, 184, 255",
+    dialStyle: "dots",
+  },
+  blackhole: {
+    bgTop: "#010205",
+    bgBottom: "#000000",
+    glowBlueRgb: "126, 184, 255",
+    glowGreenRgb: "190, 220, 255",
+    hourRgb: "235, 244, 255",
+    minuteRgb: "224, 238, 255",
+    secondRgb: "126, 184, 255",
+    numberStrokeRgb: "0, 0, 0",
+    centerRgb: "0, 0, 0",
+    dialStyle: "dots",
   },
   "simple-system": {
     systemTheme: true,
@@ -62,6 +75,17 @@ export const themes = {
     monochromeStrokeRgb: "244, 241, 232",
     monochrome: true,
   },
+  porcelain: {
+    bgTop: "#edf7f1",
+    bgBottom: "#dbe8e7",
+    glowBlueRgb: "68, 128, 154",
+    glowGreenRgb: "58, 158, 129",
+    hourRgb: "29, 51, 63",
+    minuteRgb: "36, 132, 110",
+    secondRgb: "188, 70, 54",
+    numberStrokeRgb: "238, 247, 241",
+    centerRgb: "247, 252, 248",
+  },
   minecraft: {
     bgTop: "#263f25",
     bgBottom: "#11170f",
@@ -85,19 +109,22 @@ export const themes = {
 export const modes = ["normal", "focus-second", "focus-minute"];
 
 export const themeOptions = [
-  { key: "midnight", label: "深空" },
-  { key: "sunset", label: "日落" },
-  { key: "aurora", label: "极光" },
-  { key: "starfield", label: "星空" },
-  { key: "simple-system", label: "跟随系统" },
-  { key: "simple-black", label: "黑" },
-  { key: "minimal", label: "白" },
-  { key: "minecraft", label: "我的世界" },
-  { key: "pixel", label: "霓虹" },
+  { key: "midnight", slug: "deep-space-blue", label: "深空蓝" },
+  { key: "sunset", slug: "sunset-glow", label: "暮光日落" },
+  { key: "aurora", slug: "aurora-night", label: "极光夜" },
+  { key: "starfield", slug: "starry-sky", label: "星空" },
+  { key: "blackhole", slug: "black-hole", label: "黑洞" },
+  { key: "simple-system", slug: "system", label: "跟随系统" },
+  { key: "simple-black", slug: "pure-black", label: "纯黑" },
+  { key: "minimal", slug: "warm-white", label: "暖白" },
+  { key: "minecraft", slug: "block-world", label: "方块世界" },
+  { key: "pixel", slug: "neon-pixel", label: "霓虹像素" },
+  { key: "porcelain", slug: "celadon", label: "青瓷" },
 ];
 
 export const themeGroups = [
-  { key: "spectrum", label: "光谱", themeKeys: ["midnight", "sunset", "aurora", "starfield"] },
+  { key: "spectrum", label: "光谱", themeKeys: ["midnight", "sunset", "aurora", "porcelain"] },
+  { key: "astronomy", label: "天文", themeKeys: ["starfield", "blackhole"] },
   { key: "minimal", label: "简约", themeKeys: ["simple-system", "simple-black", "minimal"] },
   { key: "pixel", label: "像素", themeKeys: ["minecraft", "pixel"] },
 ];
@@ -224,6 +251,32 @@ function accent(ringKey, alpha) {
   return `rgba(${rgb}, ${alpha})`;
 }
 
+function hourAccent(alpha) {
+  return `rgba(${activeTheme.hourRgb ?? "238, 245, 255"}, ${alpha})`;
+}
+
+function themedNumberStroke(alpha) {
+  return activeTheme.numberStrokeRgb ? `rgba(${activeTheme.numberStrokeRgb}, ${alpha})` : null;
+}
+
+export function getDialTickVisibility(theme, ringKey, focusLevel) {
+  if (theme?.dialStyle !== "dots") {
+    return {
+      dots: 0,
+      fine: 1,
+      major: 1,
+      minor: 1,
+    };
+  }
+
+  return {
+    dots: 1,
+    fine: 0,
+    major: 0,
+    minor: 0,
+  };
+}
+
 const PIXEL_FONT = '"Silkscreen", "Press Start 2P", "DotGothic16", "Courier New", monospace';
 
 function numberFamily(style) {
@@ -280,11 +333,22 @@ function applyRingAccent(style, ringKey) {
     return;
   }
 
+  const numberStroke = themedNumberStroke(ringKey === "hour" ? 0.86 : 0.82);
+
+  if (ringKey === "hour" && activeTheme.hourRgb) {
+    style.colorMinor = hourAccent(0.36);
+    style.colorMajor = hourAccent(0.92);
+    style.numberColor = hourAccent(0.96);
+    style.numberStroke = numberStroke ?? style.numberStroke;
+    return;
+  }
+
   if (ringKey === "minute" || ringKey === "second") {
     const pixel = activeTheme.pixel;
     style.colorMinor = accent(ringKey, pixel ? 0.72 : ringKey === "minute" ? 0.42 : 0.4);
     style.colorMajor = accent(ringKey, pixel ? 1 : ringKey === "minute" ? 0.92 : 0.94);
     style.numberColor = accent(ringKey, ringKey === "minute" ? 0.94 : 0.96);
+    style.numberStroke = numberStroke ?? style.numberStroke;
   }
 }
 
@@ -321,6 +385,38 @@ function drawTicks(ctx, cx, cy, radius, style, rotationDeg = 0, dpr = 1) {
   drawRingTicks(style.fineStepDeg, style.fineWidth, style.fineLen, style.fineColor);
   drawRingTicks(style.minorStepDeg, style.minorWidth, style.minorLen, style.colorMinor);
   drawRingTicks(style.majorStepDeg, style.majorWidth, style.majorLen, style.colorMajor);
+}
+
+function drawDotTicks(ctx, cx, cy, radius, style, visibility, rotationDeg = 0) {
+  if (visibility <= 0.01) {
+    return;
+  }
+
+  const drawRingDots = (stepDeg, width, length, color, scale = 1) => {
+    if (!stepDeg || width <= 0 || length <= 0) {
+      return;
+    }
+
+    const dotRadius = Math.max(0.7, width * scale) * visibility;
+    const dotOrbit = radius - length * 0.52;
+
+    ctx.fillStyle = color;
+
+    for (let deg = 0; deg < 360; deg += stepDeg) {
+      const angleDeg = deg + rotationDeg;
+      const rad = ((angleDeg - 90) * Math.PI) / 180;
+      const x = cx + Math.cos(rad) * dotOrbit;
+      const y = cy + Math.sin(rad) * dotOrbit;
+
+      ctx.beginPath();
+      ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+
+  drawRingDots(style.fineStepDeg, style.fineWidth, style.fineLen, style.fineColor, 0.58);
+  drawRingDots(style.minorStepDeg, style.minorWidth, style.minorLen, style.colorMinor, 0.86);
+  drawRingDots(style.majorStepDeg, style.majorWidth, style.majorLen, style.colorMajor, 1.1);
 }
 
 function drawNumbers(ctx, cx, cy, radius, style, rotationDeg = 0) {
@@ -440,13 +536,21 @@ function drawCenterCap(ctx, centerX, centerY, faceSize, alpha) {
   ctx.globalAlpha = alpha;
 
   const radius = Math.max(6, faceSize * 0.011);
-  ctx.fillStyle = activeTheme.monochrome ? accent("minute", 1) : "#f6f9ff";
+  ctx.fillStyle = activeTheme.monochrome
+    ? accent("minute", 1)
+    : activeTheme.centerRgb
+      ? `rgba(${activeTheme.centerRgb}, 1)`
+      : "#f6f9ff";
   ctx.beginPath();
   ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.lineWidth = Math.max(2, faceSize * 0.005);
-  ctx.strokeStyle = activeTheme.monochrome ? `rgba(${activeTheme.monochromeStrokeRgb}, 1)` : "rgba(23, 32, 49, 0.95)";
+  ctx.strokeStyle = activeTheme.monochrome
+    ? `rgba(${activeTheme.monochromeStrokeRgb}, 1)`
+    : activeTheme.hourRgb
+      ? hourAccent(0.95)
+      : "rgba(23, 32, 49, 0.95)";
   ctx.stroke();
 
   ctx.restore();
@@ -474,6 +578,7 @@ function drawRing(ctx, ring, faceSize, params) {
   };
 
   applyRingAccent(style, ring.key);
+  const tickVisibility = getDialTickVisibility(activeTheme, ring.key, focusLevel);
 
   if (ring.key === "second") {
     const fineLevel = clamp01(Math.pow(focusLevel, 0.72));
@@ -488,6 +593,12 @@ function drawRing(ctx, ring, faceSize, params) {
     style.fineLen = activeTheme.pixel ? pixelMetric(style.minorLen * 0.68) : style.minorLen * 0.7;
     style.fineWidth = activeTheme.pixel ? pixelMetric(style.minorWidth * 0.68) : Math.max(0.7, style.minorWidth * 0.46);
   }
+
+  drawDotTicks(ctx, ringCx, ringCy, radius, style, tickVisibility.dots, rotationDeg);
+
+  style.fineWidth *= tickVisibility.fine;
+  style.minorWidth *= tickVisibility.minor;
+  style.majorWidth *= tickVisibility.major;
 
   drawTicks(ctx, ringCx, ringCy, radius, style, rotationDeg, dpr);
   drawNumbers(ctx, ringCx, ringCy, radius, style, rotationDeg);
@@ -605,7 +716,16 @@ function renderFrame(timestamp, options) {
     dpr,
   });
 
-  drawHand(ctx, centerX, centerY, faceSize, angles.hourDeg, 0.0125, hourHandTipRatio, activeTheme.monochrome ? accent("minute", 1) : "#eef5ff");
+  drawHand(
+    ctx,
+    centerX,
+    centerY,
+    faceSize,
+    angles.hourDeg,
+    0.0125,
+    hourHandTipRatio,
+    activeTheme.monochrome ? accent("minute", 1) : activeTheme.hourRgb ? hourAccent(0.95) : "#eef5ff",
+  );
   drawHand(ctx, centerX, centerY, faceSize, angles.minuteDeg, 0.008, minuteHandTipRatio, accent("minute", 0.95));
   drawHand(ctx, centerX, centerY, faceSize, angles.secondDeg, 0.0038, secondHandTipRatio, accent("second", 0.95));
 

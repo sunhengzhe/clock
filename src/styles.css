@@ -59,21 +59,136 @@ body::after {
 
 body.theme-starfield {
   background:
-    radial-gradient(circle at 50% 48%, rgba(56, 96, 180, 0.12), transparent 31%),
-    radial-gradient(circle at 84% 12%, rgba(120, 205, 255, 0.08), transparent 28%),
+    radial-gradient(ellipse at 50% 48%, rgba(56, 96, 180, 0.13), transparent 30%),
+    radial-gradient(ellipse at 84% 12%, rgba(120, 205, 255, 0.07), transparent 27%),
+    radial-gradient(ellipse at 18% 88%, rgba(42, 96, 170, 0.08), transparent 32%),
     linear-gradient(165deg, var(--bg-top), var(--bg-bottom));
 }
 
 body.theme-starfield::before {
-  opacity: 0.78;
+  background:
+    radial-gradient(circle at 3% 9%, rgba(255, 255, 255, 0.58) 0 0.7px, transparent 1.6px),
+    radial-gradient(circle at 7% 24%, rgba(150, 190, 255, 0.38) 0 0.55px, transparent 1.45px),
+    radial-gradient(circle at 9% 66%, rgba(255, 255, 255, 0.42) 0 0.62px, transparent 1.5px),
+    radial-gradient(circle at 13% 43%, rgba(180, 215, 255, 0.64) 0 0.85px, transparent 1.8px),
+    radial-gradient(circle at 18% 17%, rgba(255, 255, 255, 0.74) 0 0.9px, transparent 1.9px),
+    radial-gradient(circle at 21% 82%, rgba(145, 198, 255, 0.44) 0 0.7px, transparent 1.5px),
+    radial-gradient(circle at 24% 7%, rgba(255, 255, 255, 0.36) 0 0.54px, transparent 1.4px),
+    radial-gradient(circle at 27% 57%, rgba(205, 226, 255, 0.7) 0 0.85px, transparent 1.85px),
+    radial-gradient(circle at 31% 29%, rgba(255, 255, 255, 0.5) 0 0.65px, transparent 1.5px),
+    radial-gradient(circle at 34% 91%, rgba(160, 206, 255, 0.48) 0 0.7px, transparent 1.6px),
+    radial-gradient(circle at 39% 14%, rgba(255, 255, 255, 0.78) 0 0.95px, transparent 2px),
+    radial-gradient(circle at 42% 48%, rgba(154, 198, 255, 0.4) 0 0.58px, transparent 1.45px),
+    radial-gradient(circle at 47% 76%, rgba(255, 255, 255, 0.54) 0 0.72px, transparent 1.6px),
+    radial-gradient(circle at 52% 23%, rgba(184, 218, 255, 0.62) 0 0.82px, transparent 1.8px),
+    radial-gradient(circle at 55% 64%, rgba(255, 255, 255, 0.38) 0 0.56px, transparent 1.4px),
+    radial-gradient(circle at 59% 38%, rgba(138, 188, 255, 0.42) 0 0.65px, transparent 1.5px),
+    radial-gradient(circle at 63% 8%, rgba(255, 255, 255, 0.46) 0 0.62px, transparent 1.45px),
+    radial-gradient(circle at 67% 86%, rgba(196, 224, 255, 0.58) 0 0.78px, transparent 1.7px),
+    radial-gradient(circle at 71% 19%, rgba(255, 255, 255, 0.7) 0 0.9px, transparent 1.95px),
+    radial-gradient(circle at 74% 52%, rgba(136, 187, 255, 0.36) 0 0.56px, transparent 1.45px),
+    radial-gradient(circle at 78% 72%, rgba(255, 255, 255, 0.42) 0 0.62px, transparent 1.55px),
+    radial-gradient(circle at 83% 31%, rgba(168, 208, 255, 0.58) 0 0.78px, transparent 1.7px),
+    radial-gradient(circle at 87% 11%, rgba(255, 255, 255, 0.5) 0 0.68px, transparent 1.55px),
+    radial-gradient(circle at 91% 61%, rgba(154, 204, 255, 0.44) 0 0.64px, transparent 1.52px),
+    radial-gradient(circle at 95% 84%, rgba(255, 255, 255, 0.6) 0 0.78px, transparent 1.7px);
+  opacity: 0.82;
+  animation: starfield-twinkle 9.6s ease-in-out infinite;
 }
 
 body.theme-starfield::after {
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(0, 0, 0, 0.38) 78%),
+    radial-gradient(circle at 16% 78%, rgba(255, 255, 255, 0.34) 0 0.55px, transparent 1.35px),
+    radial-gradient(circle at 29% 19%, rgba(135, 188, 255, 0.34) 0 0.5px, transparent 1.25px),
+    radial-gradient(circle at 44% 88%, rgba(255, 255, 255, 0.28) 0 0.48px, transparent 1.2px),
+    radial-gradient(circle at 58% 10%, rgba(175, 212, 255, 0.32) 0 0.54px, transparent 1.3px),
+    radial-gradient(circle at 72% 44%, rgba(255, 255, 255, 0.3) 0 0.5px, transparent 1.28px),
+    radial-gradient(circle at 86% 76%, rgba(148, 198, 255, 0.3) 0 0.5px, transparent 1.25px),
+    radial-gradient(ellipse at 52% 48%, rgba(78, 128, 220, 0.06), transparent 34%);
   opacity: 1;
+}
+
+body.theme-starfield .watch-stage::before,
+body.theme-starfield .watch-stage::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: var(--meteor-width, 104px);
+  height: 1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent 0 24%, rgba(169, 210, 255, 0.12) 58%, rgba(255, 255, 255, 0.58) 100%);
+  box-shadow:
+    0 0 5px rgba(150, 205, 255, 0.24),
+    0 0 12px rgba(94, 148, 255, 0.1);
+  filter: blur(0.12px);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(var(--meteor-start-x), var(--meteor-start-y), 0) rotate(var(--meteor-angle)) scaleX(0.42);
+  transform-origin: 100% 50%;
+  z-index: 0;
+  animation: starfield-meteor var(--meteor-duration, 14s) linear infinite;
+  animation-delay: var(--meteor-delay, 0s);
+}
+
+body.theme-starfield .watch-stage::before {
+  --meteor-angle: 4deg;
+  --meteor-delay: -18s;
+  --meteor-duration: 30s;
+  --meteor-end-x: 62vw;
+  --meteor-end-y: 10vh;
+  --meteor-mid-x: 22vw;
+  --meteor-mid-y: 9vh;
+  --meteor-start-x: -18vw;
+  --meteor-start-y: 8vh;
+  --meteor-width: 104px;
+}
+
+body.theme-starfield .watch-stage::after {
+  --meteor-angle: 31deg;
+  --meteor-delay: -20s;
+  --meteor-duration: 42s;
+  --meteor-end-x: 112vw;
+  --meteor-end-y: 24vh;
+  --meteor-mid-x: 92vw;
+  --meteor-mid-y: 5vh;
+  --meteor-start-x: 72vw;
+  --meteor-start-y: -14vh;
+  --meteor-width: 92px;
+}
+
+body.theme-blackhole {
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(30, 46, 76, 0.2), transparent 36%),
+    linear-gradient(165deg, var(--bg-top), var(--bg-bottom));
+}
+
+body.theme-blackhole::before,
+body.theme-blackhole::after {
+  opacity: 0;
+}
+
+body.theme-blackhole .watch-stage {
+  cursor: default;
+}
+
+body.theme-blackhole .watch-face,
+body.theme-blackhole .tap-hint {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 body.theme-minimal {
   background: #f4f1e8;
+}
+
+body.theme-porcelain {
+  background:
+    linear-gradient(122deg, rgba(255, 255, 255, 0.72), transparent 42%),
+    radial-gradient(ellipse at 50% 46%, rgba(255, 255, 255, 0.54), transparent 44%),
+    linear-gradient(155deg, var(--bg-top), var(--bg-bottom));
 }
 
 body.theme-simple-black {
@@ -85,6 +200,21 @@ body.theme-simple-black::after,
 body.theme-minimal::before,
 body.theme-minimal::after {
   opacity: 0;
+}
+
+body.theme-porcelain::before {
+  background:
+    linear-gradient(90deg, rgba(29, 51, 63, 0.05) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.26) 1px, transparent 1px);
+  background-size: 42px 42px;
+  opacity: 0.3;
+}
+
+body.theme-porcelain::after {
+  background:
+    linear-gradient(125deg, transparent 0 42%, rgba(255, 255, 255, 0.24) 48%, transparent 58%),
+    radial-gradient(ellipse at 50% 50%, transparent 48%, rgba(29, 51, 63, 0.12) 100%);
+  opacity: 1;
 }
 
 .watch-stage {
@@ -101,8 +231,24 @@ body.theme-minimal::after {
   user-select: none;
 }
 
+.blackhole-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease;
+}
+
+body.theme-blackhole .blackhole-backdrop {
+  opacity: 1;
+}
+
 .watch-face {
   position: relative;
+  z-index: 1;
   width: min(92vmin, calc(100vw - 40px), 620px);
   aspect-ratio: 1;
   display: block;
@@ -208,7 +354,7 @@ body.menu-visible .menu-item {
 }
 
 .menu-item-label {
-  color: rgba(206, 222, 247, 0.62);
+  color: rgba(186, 218, 255, 0.66);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.16em;
@@ -233,7 +379,7 @@ body.menu-visible .menu-item {
 
 .theme-group-label {
   padding-top: 8px;
-  color: rgba(206, 222, 247, 0.52);
+  color: rgba(168, 208, 255, 0.58);
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.08em;
@@ -320,11 +466,29 @@ body.menu-visible .menu-item {
 }
 
 .theme-swatch[data-theme="starfield"] .theme-swatch-dot {
-  background: #070d1c;
+  background:
+    radial-gradient(circle at 28% 28%, rgba(255, 255, 255, 0.95) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 72% 36%, rgba(166, 205, 255, 0.78) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 46% 72%, rgba(255, 255, 255, 0.62) 0 0.8px, transparent 1.6px),
+    #070d1c;
 }
 
 .menu-trigger[data-theme="starfield"] .theme-trigger-dot {
-  background: #070d1c;
+  background:
+    radial-gradient(circle at 28% 28%, rgba(255, 255, 255, 0.95) 0 0.8px, transparent 1.5px),
+    radial-gradient(circle at 72% 36%, rgba(166, 205, 255, 0.78) 0 0.8px, transparent 1.5px),
+    #070d1c;
+}
+
+.theme-swatch[data-theme="blackhole"] .theme-swatch-dot,
+.menu-trigger[data-theme="blackhole"] .theme-trigger-dot {
+  background:
+    radial-gradient(circle at 50% 50%, #000000 0 28%, transparent 30%),
+    radial-gradient(ellipse at 50% 50%, transparent 0 27%, rgba(224, 238, 255, 0.9) 30%, rgba(89, 156, 255, 0.62) 38%, transparent 46%),
+    linear-gradient(150deg, #04070f, #000000);
+  box-shadow:
+    inset 0 0 0 1px rgba(210, 230, 255, 0.22),
+    0 0 10px rgba(92, 150, 230, 0.18);
 }
 
 .theme-swatch[data-theme="simple-system"] .theme-swatch-dot {
@@ -356,6 +520,15 @@ body.menu-visible .menu-item {
 .menu-trigger[data-theme="minimal"] .theme-trigger-dot {
   background: #f4f1e8;
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.38);
+}
+
+.theme-swatch[data-theme="porcelain"] .theme-swatch-dot,
+.menu-trigger[data-theme="porcelain"] .theme-trigger-dot {
+  background: #edf7f1;
+  box-shadow:
+    inset 0 0 0 2px rgba(36, 132, 110, 0.72),
+    inset 0 0 0 5px rgba(255, 255, 255, 0.48),
+    0 2px 7px rgba(29, 51, 63, 0.14);
 }
 
 .theme-swatch[data-theme="minecraft"] .theme-swatch-dot {
@@ -417,7 +590,7 @@ body.menu-visible .menu-item {
 }
 
 .theme-swatch-name {
-  color: rgba(214, 228, 250, 0.5);
+  color: rgba(176, 214, 255, 0.6);
   font-size: 11px;
   font-weight: 560;
   letter-spacing: 0.04em;
@@ -430,6 +603,10 @@ body.menu-visible .menu-item {
 
 body.theme-minimal .theme-swatch:focus-visible {
   outline-color: rgba(0, 0, 0, 0.82);
+}
+
+body.theme-porcelain .theme-swatch:focus-visible {
+  outline-color: rgba(188, 70, 54, 0.88);
 }
 
 body.theme-simple-black .theme-swatch:focus-visible {
@@ -447,6 +624,19 @@ body.theme-minimal .menu-trigger {
   border-color: rgba(0, 0, 0, 0.12);
   color: rgba(0, 0, 0, 0.72);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1);
+}
+
+body.theme-porcelain .menu-item {
+  background: rgba(247, 252, 248, 0.72);
+  border-color: rgba(29, 51, 63, 0.12);
+  box-shadow: 0 10px 30px rgba(29, 51, 63, 0.12);
+}
+
+body.theme-porcelain .menu-trigger {
+  background: rgba(247, 252, 248, 0.76);
+  border-color: rgba(29, 51, 63, 0.13);
+  color: rgba(29, 51, 63, 0.74);
+  box-shadow: 0 10px 28px rgba(29, 51, 63, 0.1);
 }
 
 body.theme-simple-black .menu-item {
@@ -469,6 +659,13 @@ body.theme-minimal .tap-hint {
   color: rgba(0, 0, 0, 0.56);
 }
 
+body.theme-porcelain .menu-item-label,
+body.theme-porcelain .theme-group-label,
+body.theme-porcelain .theme-swatch-name,
+body.theme-porcelain .tap-hint {
+  color: rgba(29, 51, 63, 0.58);
+}
+
 body.theme-simple-black .menu-item-label,
 body.theme-simple-black .theme-group-label,
 body.theme-simple-black .theme-swatch-name,
@@ -485,6 +682,17 @@ body.theme-minimal .theme-swatch[aria-checked="true"] .theme-swatch-dot {
 
 body.theme-minimal .theme-swatch[aria-checked="true"] .theme-swatch-name {
   color: #000000;
+}
+
+body.theme-porcelain .theme-swatch[aria-checked="true"] .theme-swatch-name {
+  color: #1d333f;
+}
+
+body.theme-porcelain .theme-swatch[aria-checked="true"] .theme-swatch-dot {
+  box-shadow:
+    inset 0 0 0 1px rgba(29, 51, 63, 0.54),
+    0 0 0 2px #bc4636,
+    0 0 0 5px rgba(237, 247, 241, 0.92);
 }
 
 body.theme-simple-black .theme-swatch[aria-checked="true"] .theme-swatch-name {
@@ -531,10 +739,70 @@ body.show-tap-hint .tap-hint {
   }
 }
 
+@keyframes starfield-twinkle {
+  0%,
+  100% {
+    filter: blur(0.18px) brightness(0.88) saturate(0.96);
+    opacity: 0.74;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  18% {
+    filter: blur(0) brightness(1.16) saturate(1.16);
+    opacity: 0.96;
+  }
+  37% {
+    filter: blur(0.24px) brightness(0.92) saturate(1.04);
+    opacity: 0.82;
+    transform: translate3d(0.35px, -0.2px, 0) scale(1.001);
+  }
+  61% {
+    filter: blur(0.06px) brightness(1.24) saturate(1.22);
+    opacity: 0.98;
+  }
+  82% {
+    filter: blur(0.16px) brightness(0.96) saturate(0.98);
+    opacity: 0.86;
+    transform: translate3d(-0.25px, 0.25px, 0) scale(0.999);
+  }
+}
+
+@keyframes starfield-meteor {
+  0%,
+  70%,
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--meteor-start-x), var(--meteor-start-y), 0) rotate(var(--meteor-angle)) scaleX(0.42);
+  }
+  76% {
+    opacity: 0.42;
+    transform: translate3d(var(--meteor-mid-x), var(--meteor-mid-y), 0) rotate(var(--meteor-angle)) scaleX(0.8);
+  }
+  87% {
+    opacity: 0;
+    transform: translate3d(var(--meteor-end-x), var(--meteor-end-y), 0) rotate(var(--meteor-angle)) scaleX(1);
+  }
+  88% {
+    opacity: 0;
+    transform: translate3d(var(--meteor-end-x), var(--meteor-end-y), 0) rotate(var(--meteor-angle)) scaleX(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   body.show-tap-hint .tap-hint {
     animation: none;
     opacity: 0.55;
+  }
+
+  body.theme-starfield::before {
+    animation: none;
+    filter: none;
+    opacity: 0.9;
+  }
+
+  body.theme-starfield .watch-stage::before,
+  body.theme-starfield .watch-stage::after {
+    animation: none;
+    opacity: 0;
   }
 }
 

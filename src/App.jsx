@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { BlackHoleBackdrop } from "./BlackHoleBackdrop.jsx";
 import { readFaceClickedPreference, writeFaceClickedPreference } from "./interaction-preferences.js";
-import { DEFAULT_THEME_KEY, readThemePreference, writeThemePreference } from "./theme-preferences.js";
+import { DEFAULT_THEME_KEY, buildThemeSearch, readThemeFromSearch } from "./theme-preferences.js";
 import {
   groupThemeOptions,
   modes,
   resolveTheme,
   resolveThemeKey,
   startWatchRenderer,
+  themeOptions,
   themes,
 } from "./watch-renderer.js";
 
@@ -26,12 +28,25 @@ function storeFaceClicked() {
   writeFaceClickedPreference(window.localStorage);
 }
 
-function getStoredThemeKey() {
+function getThemeKeyFromUrl() {
   if (typeof window === "undefined") {
     return DEFAULT_THEME_KEY;
   }
 
-  return readThemePreference(window.localStorage, themes, DEFAULT_THEME_KEY);
+  return readThemeFromSearch(window.location.search, themeOptions, DEFAULT_THEME_KEY);
+}
+
+function replaceThemeUrl(themeKey) {
+  const nextSearch = buildThemeSearch(window.location.search, themeKey, themeOptions);
+  if (nextSearch === null) {
+    return;
+  }
+
+  const nextUrl = `${window.location.pathname}${nextSearch}${window.location.hash}`;
+  const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (nextUrl !== currentUrl) {
+    window.history.replaceState(window.history.state, "", nextUrl);
+  }
 }
 
 function getCurrentSystemScheme() {
@@ -51,7 +66,7 @@ function getIsTouchMenu() {
 }
 
 export default function App() {
-  const [themeKey, setThemeKey] = useState(getStoredThemeKey);
+  const [themeKey, setThemeKey] = useState(getThemeKeyFromUrl);
   const [systemScheme, setSystemScheme] = useState(getCurrentSystemScheme);
   const [isTouchMenu, setIsTouchMenu] = useState(getIsTouchMenu);
   const [modeIndex, setModeIndex] = useState(0);
@@ -109,6 +124,15 @@ export default function App() {
     body.classList.toggle("theme-pixel", Boolean(theme.pixel));
     body.classList.toggle("theme-monochrome", Boolean(theme.monochrome));
   }, [systemScheme, themeKey]);
+
+  useEffect(() => {
+    const syncThemeFromUrl = () => {
+      setThemeKey(getThemeKeyFromUrl());
+    };
+
+    window.addEventListener("popstate", syncThemeFromUrl);
+    return () => window.removeEventListener("popstate", syncThemeFromUrl);
+  }, []);
 
   useEffect(() => {
     const media = window.matchMedia?.("(prefers-color-scheme: dark)");
@@ -237,13 +261,15 @@ export default function App() {
   const handleThemeClick = useCallback(
     (nextThemeKey) => {
       setThemeKey(nextThemeKey);
-      writeThemePreference(window.localStorage, nextThemeKey, themes);
+      replaceThemeUrl(nextThemeKey);
       if (!isTouchMenu) {
         showMenuWithTimeout();
       }
     },
     [isTouchMenu, showMenuWithTimeout],
   );
+
+  const activeThemeKey = resolveThemeKey(themeKey, systemScheme);
 
   return (
     <main
@@ -253,6 +279,8 @@ export default function App() {
       onPointerEnter={handleStagePointerEnter}
       onPointerLeave={handleStagePointerLeave}
     >
+      <BlackHoleBackdrop active={activeThemeKey === "blackhole"} />
+
       <div ref={watchFaceRef} id="watch-face" className="watch-face" aria-hidden="true">
         <canvas ref={canvasRef} id="watch-canvas" className="watch-canvas" aria-hidden="true" />
       </div>

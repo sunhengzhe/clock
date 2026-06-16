@@ -32,11 +32,11 @@ export const themes = {
   starfield: {
     bgTop: "#070d1c",
     bgBottom: "#01030a",
-    glowBlueRgb: "64, 118, 210",
-    glowGreenRgb: "58, 196, 184",
-    minuteRgb: "93, 226, 210",
-    secondRgb: "142, 184, 255",
-    dialStyle: "dots",
+    glowBlueRgb: "82, 126, 224",
+    glowGreenRgb: "130, 112, 214",
+    minuteRgb: "166, 190, 255",
+    secondRgb: "220, 196, 255",
+    dialStyle: "hidden",
   },
   blackhole: {
     bgTop: "#010205",
@@ -260,6 +260,17 @@ function themedNumberStroke(alpha) {
 }
 
 export function getDialTickVisibility(theme, ringKey, focusLevel) {
+  if (theme?.dialStyle === "hidden") {
+    const focusVisibility = smoothStep((focusLevel - 0.08) / 0.22);
+
+    return {
+      dots: focusVisibility,
+      fine: 0,
+      major: 0,
+      minor: 0,
+    };
+  }
+
   if (theme?.dialStyle !== "dots") {
     return {
       dots: 0,

@@ -61,8 +61,11 @@ test("system theme resolves to a concrete monochrome theme", () => {
   assert.equal(resolveThemeKey("simple-system", "dark"), "simple-black");
 });
 
-test("starfield theme uses a dotted dial style", () => {
-  assert.equal(themes.starfield.dialStyle, "dots");
+test("starfield theme uses a hidden tick style", () => {
+  assert.equal(themes.starfield.dialStyle, "hidden");
+  assert.equal(themes.starfield.minuteRgb, "166, 190, 255");
+  assert.equal(themes.starfield.secondRgb, "220, 196, 255");
+  assert.notEqual(themes.starfield.minuteRgb, "93, 226, 210");
   assert.equal(themes.midnight.dialStyle, undefined);
 });
 

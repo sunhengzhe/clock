@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { BlackHoleBackdrop } from "./BlackHoleBackdrop.jsx";
+import { StarfieldConstellations } from "./StarfieldConstellations.jsx";
 import { readFaceClickedPreference, writeFaceClickedPreference } from "./interaction-preferences.js";
 import { DEFAULT_THEME_KEY, buildThemeSearch, readThemeFromSearch } from "./theme-preferences.js";
 import {
@@ -279,6 +280,7 @@ export default function App() {
       onPointerEnter={handleStagePointerEnter}
       onPointerLeave={handleStagePointerLeave}
     >
+      <StarfieldConstellations active={activeThemeKey === "starfield"} />
       <BlackHoleBackdrop active={activeThemeKey === "blackhole"} />
 
       <div ref={watchFaceRef} id="watch-face" className="watch-face" aria-hidden="true">

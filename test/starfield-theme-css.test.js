@@ -32,6 +32,12 @@ test("starfield theme defines intermittent meteor layers", () => {
   assert.match(styles, /@keyframes\s+starfield-meteor/);
 });
 
+test("starfield theme has a dedicated constellation canvas layer", () => {
+  assert.match(getCssBlock(".starfield-constellations"), /position:\s*fixed/);
+  assert.match(getCssBlock(".starfield-constellations"), /pointer-events:\s*none/);
+  assert.match(getCssBlock("body.theme-starfield .starfield-constellations"), /opacity:\s*1/);
+});
+
 test("starfield meteors are slow and subdued", () => {
   assert.match(styles, /body\.theme-starfield\s+\.watch-stage::before\s*{[\s\S]*?--meteor-duration:\s*30s/);
   assert.match(styles, /body\.theme-starfield\s+\.watch-stage::after\s*{[\s\S]*?--meteor-duration:\s*42s/);
